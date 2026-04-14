@@ -307,9 +307,11 @@ function BettingOddsPanel() {
 }
 
 function parseLeaders(data: any, stat: string): Leader[] {
-  if (!data?.resultSet?.rowSet) return [];
-  const headers: string[] = data.resultSet.headers;
-  const rows: any[][] = data.resultSet.rowSet;
+  // Server returns { resultSets: [{ name, headers, rowSet }] }
+  const rs = data?.resultSets?.[0] ?? data?.resultSet;
+  if (!rs?.rowSet) return [];
+  const headers: string[] = rs.headers;
+  const rows: any[][] = rs.rowSet;
   const nameIdx = headers.indexOf('PLAYER');
   const teamIdx = headers.indexOf('TEAM');
   const statIdx = headers.indexOf(stat);
@@ -406,13 +408,19 @@ export default function App() {
       })));
     } catch (e) { console.error('ESPN fetch failed', e); }
 
+    let pingOk = false;
     try {
-      const pingRes = await fetch(`${PROXY}/news`, { signal: AbortSignal.timeout(5000) });
-      if (pingRes.ok) {
-        setProxyOnline(true);
+      const pingRes = await fetch(`${PROXY}/news`, { signal: AbortSignal.timeout(12000) });
+      pingOk = pingRes.ok;
+    } catch { pingOk = false; }
+
+    setProxyOnline(pingOk);
+
+    if (pingOk) {
+      try {
         const [standData, pts, reb, ast, stl, blk] = await Promise.all([
           fetch(`${PROXY}/standings`).then(r => r.json()),
-          ...['PTS', 'REB', 'AST', 'STL', 'BLK'].map(stat =>
+          ...(['PTS', 'REB', 'AST', 'STL', 'BLK'] as string[]).map(stat =>
             fetch(`${PROXY}/leaders?stat=${stat}`).then(r => r.json())
           ),
         ]);
@@ -425,9 +433,7 @@ export default function App() {
           Steals:   parseLeaders(stl, 'STL'),
           Blocks:   parseLeaders(blk, 'BLK'),
         });
-      }
-    } catch {
-      setProxyOnline(false);
+      } catch (e) { console.error('Data fetch error:', e); }
     }
 
     setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }));
