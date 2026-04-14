@@ -220,29 +220,30 @@ app.get('/api/standings', async (req, res) => {
         { timeout: 10000 }
       );
       const rows = [];
-      let rank = { East: 1, West: 1 };
+      // ESPN structure: root.children = conferences → conf.children = divisions → div.standings.entries = teams
       for (const conf of (r.data.children || [])) {
         const confName = conf.name?.includes('East') ? 'East' : 'West';
-        for (const entry of (conf.standings?.entries || [])) {
-          const team = entry.team;
-          const abbr = team.abbreviation;
-          const nbaId = ESPN_ABBR_TO_NBA_ID[abbr] || team.id;
-          const stats = {};
-          for (const s of (entry.stats || [])) { stats[s.name] = s.value; }
-          // Split display name into city + name (e.g. "Boston Celtics" → "Boston" + "Celtics")
-          const parts = (team.displayName || '').split(' ');
-          const teamName = parts.slice(-1)[0];
-          const teamCity = parts.slice(0, -1).join(' ');
-          rows.push([
-            nbaId, teamCity, teamName,
-            Math.round(stats.wins || 0),
-            Math.round(stats.losses || 0),
-            (stats.winPercent || 0).toFixed(3),
-            confName, abbr,
-            rank[confName]++,
-          ]);
+        for (const division of (conf.children || [])) {
+          for (const entry of (division.standings?.entries || [])) {
+            const team = entry.team;
+            const abbr = team.abbreviation;
+            const nbaId = ESPN_ABBR_TO_NBA_ID[abbr] || team.id;
+            const stats = {};
+            for (const s of (entry.stats || [])) { stats[s.name] = s.get ? s.get('value') : s.value; }
+            const winPct = stats.winPercent || 0;
+            const losses = Math.round(stats.losses || 0);
+            // ESPN doesn't expose wins directly — derive it
+            const wins = winPct < 1 ? Math.round(losses * winPct / (1 - winPct)) : losses;
+            const seed = Math.round(stats.playoffSeed || 0);
+            const parts = (team.displayName || '').split(' ');
+            const teamName = parts.slice(-1)[0];
+            const teamCity = parts.slice(0, -1).join(' ');
+            rows.push([nbaId, teamCity, teamName, wins, losses, winPct.toFixed(3), confName, abbr, seed]);
+          }
         }
       }
+      // Sort by conference then seed
+      rows.sort((a, b) => a[6].localeCompare(b[6]) || a[8] - b[8]);
       return {
         resultSets: [{
           name: 'Standings',
