@@ -55,17 +55,17 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function nba(endpoint, params = {}, retries = 3) {
+async function nba(endpoint, params = {}, retries = 1) {
   for (let i = 0; i < retries; i++) {
     try {
       const r = await axios.get(`https://stats.nba.com/stats/${endpoint}`, {
-        headers: NBA_HEADERS, params, timeout: 30000,
+        headers: NBA_HEADERS, params, timeout: 5000,
       });
       return r.data;
     } catch (e) {
       if (i < retries - 1) {
         console.log(`Retry ${i + 1} for ${endpoint}...`);
-        await sleep(2000 * (i + 1));
+        await sleep(1000);
       } else {
         throw e;
       }
@@ -343,20 +343,75 @@ app.get('/api/news', async (req, res) => {
 
 // ── PLAYER PROFILE — individual data ─────────────────────────────────────────
 
+// Reverse lookup: NBA.com numeric ID → pool player
+function poolPlayerById(pool, nbaId) {
+  const sid = String(nbaId);
+  // Find player name by searching PLAYER_NBA_ID map
+  for (const [name, id] of Object.entries(PLAYER_NBA_ID)) {
+    if (id === sid) {
+      return pool.find(p => p.PLAYER_NAME === name) || null;
+    }
+  }
+  return null;
+}
+
+function syntheticPlayerInfo(p, nbaId) {
+  const headers = ['PERSON_ID','DISPLAY_FIRST_LAST','TEAM_ID','TEAM_NAME','TEAM_CITY','TEAM_ABBREVIATION',
+    'JERSEY','POSITION','HEIGHT','WEIGHT','BIRTHDATE','COUNTRY','SCHOOL',
+    'DRAFT_YEAR','DRAFT_ROUND','DRAFT_NUMBER','FROM_YEAR','TO_YEAR','GREATEST_75_FLAG'];
+  const row = [
+    nbaId, p.PLAYER_NAME, '', '', '', p.TEAM_ABBREVIATION || '',
+    '', '', '', '', '', '', '',
+    '', '', '', SEASON.split('-')[0], SEASON.split('-')[0], 'N'
+  ];
+  return { resultSets: [{ name: 'CommonPlayerInfo', headers, rowSet: [row] }] };
+}
+
+function syntheticCareerStats(p) {
+  const season = SEASON;
+  const headers = ['PLAYER_ID','SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','PLAYER_AGE',
+    'GP','GS','MIN','FGM','FGA','FG_PCT','FG3M','FG3A','FG3_PCT','FTM','FTA','FT_PCT',
+    'OREB','DREB','REB','AST','STL','BLK','TOV','PF','PTS'];
+  const row = [
+    p.PLAYER_ID || '', season, '', p.TEAM_ABBREVIATION || '', '',
+    p.GP || 0, p.GP || 0, p.MIN || 0, 0, 0, p.FG_PCT || 0, 0, p.FG3A || 0, p.FG3_PCT || 0,
+    0, 0, p.FT_PCT || 0, p.OREB || 0, p.DREB || 0, p.REB || 0,
+    p.AST || 0, p.STL || 0, p.BLK || 0, p.TOV || 0, 0, p.PTS || 0
+  ];
+  return { resultSets: [{ name: 'SeasonTotalsRegularSeason', headers, rowSet: [row] }] };
+}
+
 app.get('/api/player-info/:id', async (req, res) => {
+  const nbaId = req.params.id;
   try {
-    const data = await cached(`pinfo_${req.params.id}`, TTL.player, () =>
-      nba('commonplayerinfo', { PlayerID: req.params.id })
-    );
+    // Try stats.nba.com (fast timeout now) then fall back to pool
+    const data = await cached(`pinfo_${nbaId}`, TTL.player, async () => {
+      try {
+        return await nba('commonplayerinfo', { PlayerID: nbaId });
+      } catch {
+        const pool = await getPool();
+        const p = poolPlayerById(pool, nbaId);
+        if (p) return syntheticPlayerInfo(p, nbaId);
+        throw new Error('Player not found');
+      }
+    });
     res.json(data);
   } catch (e) { console.error('player-info:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/player-career/:id', async (req, res) => {
+  const nbaId = req.params.id;
   try {
-    const data = await cached(`pcareer_${req.params.id}`, TTL.player, () =>
-      nba('playercareerstats', { PlayerID: req.params.id, PerMode: 'PerGame' })
-    );
+    const data = await cached(`pcareer_${nbaId}`, TTL.player, async () => {
+      try {
+        return await nba('playercareerstats', { PlayerID: nbaId, PerMode: 'PerGame' });
+      } catch {
+        const pool = await getPool();
+        const p = poolPlayerById(pool, nbaId);
+        if (p) return syntheticCareerStats(p);
+        throw new Error('Player not found');
+      }
+    });
     res.json(data);
   } catch (e) { console.error('player-career:', e.message); res.status(500).json({ error: e.message }); }
 });
