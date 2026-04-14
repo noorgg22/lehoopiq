@@ -435,26 +435,123 @@ app.get('/api/player-splits/:id', async (req, res) => {
   } catch (e) { console.error('player-splits:', e.message); res.status(500).json({ error: e.message }); }
 });
 
+// Hardcoded awards for top players (fallback when stats.nba.com is blocked)
+const HARDCODED_AWARDS = {
+  '2544': [ // LeBron James
+    {D:'NBA Most Valuable Player',S:'2008-09'},{D:'NBA Most Valuable Player',S:'2009-10'},{D:'NBA Most Valuable Player',S:'2011-12'},{D:'NBA Most Valuable Player',S:'2012-13'},
+    {D:'NBA Finals Most Valuable Player',S:'2011-12'},{D:'NBA Finals Most Valuable Player',S:'2015-16'},{D:'NBA Finals Most Valuable Player',S:'2019-20'},{D:'NBA Finals Most Valuable Player',S:'2022-23'},
+    {D:'NBA Champion',S:'2011-12'},{D:'NBA Champion',S:'2015-16'},{D:'NBA Champion',S:'2019-20'},{D:'NBA Champion',S:'2022-23'},
+  ],
+  '1629029': [ // Luka Dončić
+    {D:'NBA Scoring Champion',S:'2023-24'},{D:'NBA Scoring Champion',S:'2024-25'},
+  ],
+  '1628983': [ // Shai Gilgeous-Alexander
+    {D:'NBA Most Valuable Player',S:'2024-25'},{D:'NBA Finals Most Valuable Player',S:'2024-25'},{D:'NBA Scoring Champion',S:'2024-25'},{D:'NBA Champion',S:'2024-25'},
+    {D:'NBA Scoring Champion',S:'2025-26'},
+  ],
+  '203999': [ // Nikola Jokić
+    {D:'NBA Most Valuable Player',S:'2020-21'},{D:'NBA Most Valuable Player',S:'2021-22'},{D:'NBA Most Valuable Player',S:'2023-24'},
+    {D:'NBA Finals Most Valuable Player',S:'2022-23'},{D:'NBA Champion',S:'2022-23'},
+  ],
+  '203507': [ // Giannis
+    {D:'NBA Most Valuable Player',S:'2018-19'},{D:'NBA Most Valuable Player',S:'2019-20'},
+    {D:'NBA Finals Most Valuable Player',S:'2020-21'},{D:'NBA Champion',S:'2020-21'},
+    {D:'NBA Defensive Player of the Year',S:'2019-20'},{D:'NBA Defensive Player of the Year',S:'2022-23'},
+  ],
+  '203954': [ // Embiid
+    {D:'NBA Most Valuable Player',S:'2022-23'},{D:'NBA Scoring Champion',S:'2022-23'},
+  ],
+  '201939': [ // Steph Curry
+    {D:'NBA Most Valuable Player',S:'2014-15'},{D:'NBA Most Valuable Player',S:'2015-16'},
+    {D:'NBA Finals Most Valuable Player',S:'2021-22'},{D:'NBA Champion',S:'2014-15'},{D:'NBA Champion',S:'2015-16'},{D:'NBA Champion',S:'2017-18'},{D:'NBA Champion',S:'2018-19'},{D:'NBA Champion',S:'2021-22'},
+  ],
+  '201142': [ // Kevin Durant
+    {D:'NBA Most Valuable Player',S:'2013-14'},{D:'NBA Scoring Champion',S:'2009-10'},{D:'NBA Scoring Champion',S:'2011-12'},{D:'NBA Scoring Champion',S:'2012-13'},{D:'NBA Scoring Champion',S:'2013-14'},
+    {D:'NBA Finals Most Valuable Player',S:'2016-17'},{D:'NBA Finals Most Valuable Player',S:'2017-18'},
+    {D:'NBA Champion',S:'2016-17'},{D:'NBA Champion',S:'2017-18'},
+  ],
+  '1630162': [ // Anthony Edwards
+    {D:'NBA Rookie of the Year',S:'2020-21'},
+  ],
+  '1641705': [ // Wembanyama
+    {D:'NBA Rookie of the Year',S:'2023-24'},{D:'NBA Defensive Player of the Year',S:'2025-26'},
+  ],
+  '203081': [ // Lillard
+    {D:'NBA Scoring Champion',S:'2022-23'},
+  ],
+  '201935': [ // Harden
+    {D:'NBA Most Valuable Player',S:'2017-18'},{D:'NBA Scoring Champion',S:'2017-18'},{D:'NBA Scoring Champion',S:'2018-19'},{D:'NBA Scoring Champion',S:'2019-20'},
+  ],
+  '202695': [ // Kawhi
+    {D:'NBA Finals Most Valuable Player',S:'2013-14'},{D:'NBA Finals Most Valuable Player',S:'2018-19'},
+    {D:'NBA Champion',S:'2013-14'},{D:'NBA Champion',S:'2018-19'},
+    {D:'NBA Defensive Player of the Year',S:'2014-15'},{D:'NBA Defensive Player of the Year',S:'2015-16'},
+  ],
+};
+
+function buildAwardsResponse(awards) {
+  const headers = ['PLAYER_ID','SEASON','DESCRIPTION','TYPE','SUBTYPE1','SUBTYPE2','SUBTYPE3','ALL_NBA_TEAM_NUMBER'];
+  const rowSet = awards.map(a => [a.PLAYER_ID||'', a.S||a.SEASON||'', a.D||a.DESCRIPTION||'', '', '', '', '', a.ALL_NBA_TEAM_NUMBER||'']);
+  return { resultSets: [{ name: 'PlayerAwards', headers, rowSet }] };
+}
+
 app.get('/api/player-awards/:id', async (req, res) => {
+  const nbaId = req.params.id;
   try {
-    const data = await cached(`pawards_${req.params.id}`, TTL.player, () =>
-      nba('playerawards', { PlayerID: req.params.id })
-    );
+    const data = await cached(`pawards_${nbaId}`, TTL.player, async () => {
+      try {
+        return await nba('playerawards', { PlayerID: nbaId });
+      } catch {
+        // Fall back to hardcoded data
+        const hardcoded = HARDCODED_AWARDS[nbaId];
+        if (hardcoded) return buildAwardsResponse(hardcoded);
+        throw new Error('No awards data');
+      }
+    });
     res.json(data);
-  } catch (e) { console.error('player-awards:', e.message); res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    // Return empty awards gracefully — don't 500
+    res.json({ resultSets: [{ name: 'PlayerAwards', headers: ['PLAYER_ID','SEASON','DESCRIPTION','TYPE','SUBTYPE1','SUBTYPE2','SUBTYPE3','ALL_NBA_TEAM_NUMBER'], rowSet: [] }] });
+  }
 });
 
+// Reverse map: NBA team ID → abbreviation
+const NBA_ID_TO_ABBR = Object.fromEntries(
+  Object.entries(ESPN_ABBR_TO_NBA_ID).map(([abbr, id]) => [id, abbr])
+);
+// Reverse map: NBA.com player ID → player name
+const NBA_ID_TO_NAME = Object.fromEntries(
+  Object.entries(PLAYER_NBA_ID).map(([name, id]) => [id, name])
+);
+
 app.get('/api/team-roster/:teamId', async (req, res) => {
+  const teamId = req.params.teamId;
   try {
-    // Use stats.nba.com commonteamroster — this returns real NBA.com player IDs
-    // that match the headshot CDN (cdn.nba.com/headshots/nba/latest/...)
-    const data = await cached(`roster_${req.params.teamId}`, TTL.stats, () =>
-      nba('commonteamroster', {
-        TeamID: req.params.teamId,
-        Season: SEASON,
-        LeagueID: '00',
-      })
-    );
+    const data = await cached(`roster_${teamId}`, TTL.stats, async () => {
+      try {
+        // Try stats.nba.com first (best data with jersey numbers etc.)
+        return await nba('commonteamroster', { TeamID: teamId, Season: SEASON, LeagueID: '00' });
+      } catch {
+        // Fallback: build roster from pool filtered by team abbreviation
+        console.log(`[roster fallback] Building ${teamId} roster from pool`);
+        const abbr = NBA_ID_TO_ABBR[teamId];
+        if (!abbr) throw new Error(`Unknown team ID: ${teamId}`);
+        const pool = await getPool();
+        const headers = ['TeamID','SEASON','LeagueID','PLAYER','NICKNAME','PLAYER_SLUG',
+          'NUM','POSITION','HEIGHT','WEIGHT','BIRTH_DATE','AGE','EXP','SCHOOL','PLAYER_ID','HOW_ACQUIRED'];
+        // Filter pool to this team, sort by PTS desc
+        const players = pool
+          .filter(p => p.TEAM_ABBREVIATION === abbr || p.TEAM_ABBREVIATION === `${abbr}` )
+          .sort((a, b) => (b.PTS || 0) - (a.PTS || 0))
+          .slice(0, 18);
+        const rowSet = players.map(p => {
+          // Use NBA.com ID from PLAYER_NBA_ID lookup, fall back to bbref ID
+          const nbaId = PLAYER_NBA_ID[p.PLAYER_NAME] || p.PLAYER_ID;
+          return [teamId, SEASON, '00', p.PLAYER_NAME, '', '', '', '', '', '', '', '', '', '', nbaId, ''];
+        });
+        return { resultSets: [{ name: 'CommonTeamRoster', headers, rowSet }] };
+      }
+    });
     res.json(data);
   } catch (e) {
     console.error('team-roster:', e.message);
