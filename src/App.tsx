@@ -407,18 +407,17 @@ export default function App() {
     } catch (e) { console.error('ESPN fetch failed', e); }
 
     try {
-      const pingRes = await fetch(`${PROXY}/standings`, { signal: AbortSignal.timeout(3000) });
+      const pingRes = await fetch(`${PROXY}/news`, { signal: AbortSignal.timeout(5000) });
       if (pingRes.ok) {
         setProxyOnline(true);
-        const standData = await pingRes.json();
+        const [standData, pts, reb, ast, stl, blk] = await Promise.all([
+          fetch(`${PROXY}/standings`).then(r => r.json()),
+          ...['PTS', 'REB', 'AST', 'STL', 'BLK'].map(stat =>
+            fetch(`${PROXY}/leaders?stat=${stat}`).then(r => r.json())
+          ),
+        ]);
         const parsed = parseStandings(standData);
         if (parsed.length > 0) setStandings(parsed);
-
-        const [pts, reb, ast, stl, blk] = await Promise.all(
-          ['PTS', 'REB', 'AST', 'STL', 'BLK'].map(stat =>
-            fetch(`${PROXY}/leaders?stat=${stat}`).then(r => r.json())
-          )
-        );
         setLeaders({
           Points:   parseLeaders(pts, 'PTS'),
           Rebounds: parseLeaders(reb, 'REB'),

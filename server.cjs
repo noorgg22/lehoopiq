@@ -177,31 +177,92 @@ function poolResponse(rows) {
 
 // ── HOME PAGE ─────────────────────────────────────────────────────────────────
 
+// Leaders: built from our nbaapi.com pool (works from Railway)
 app.get('/api/leaders', async (req, res) => {
   try {
     const { stat = 'PTS' } = req.query;
-    const data = await cached(`leaders_${stat}`, TTL.stats, () =>
-      nba('leagueleaders', { ...STD, PerMode: 'PerGame', Scope: 'S', StatCategory: stat })
-    );
-    res.json(data);
+    const STAT_MAP = {
+      PTS: 'PTS', REB: 'REB', AST: 'AST', STL: 'STL', BLK: 'BLK',
+    };
+    const field = STAT_MAP[stat] || 'PTS';
+    const pool = await getPool();
+    const sorted = [...pool]
+      .filter(p => p[field] != null)
+      .sort((a, b) => b[field] - a[field])
+      .slice(0, 15);
+    const headers = ['PLAYER_ID', 'PLAYER', 'TEAM', 'GP', field];
+    res.json({
+      resultSets: [{
+        name: 'LeagueLeaders',
+        headers,
+        rowSet: sorted.map(p => [p.PLAYER_ID, p.PLAYER_NAME, p.TEAM_ABBREVIATION, p.GP, p[field]]),
+      }]
+    });
   } catch (e) { console.error('leaders:', e.message); res.status(500).json({ error: e.message }); }
 });
 
+// Standings: ESPN API (works from Railway, no IP blocking)
+const ESPN_ABBR_TO_NBA_ID = {
+  'ATL':'1610612737','BOS':'1610612738','BKN':'1610612751','CHA':'1610612766',
+  'CHI':'1610612741','CLE':'1610612739','DAL':'1610612742','DEN':'1610612743',
+  'DET':'1610612765','GSW':'1610612744','HOU':'1610612745','IND':'1610612754',
+  'LAC':'1610612746','LAL':'1610612747','MEM':'1610612763','MIA':'1610612748',
+  'MIL':'1610612749','MIN':'1610612750','NOP':'1610612740','NYK':'1610612752',
+  'OKC':'1610612760','ORL':'1610612753','PHI':'1610612755','PHX':'1610612756',
+  'POR':'1610612757','SAC':'1610612758','SAS':'1610612759','TOR':'1610612761',
+  'UTA':'1610612762','WAS':'1610612764',
+};
 app.get('/api/standings', async (req, res) => {
   try {
-    const data = await cached('standings', TTL.stats, () =>
-      nba('leaguestandingsv3', { ...STD, SeasonYear: SEASON })
-    );
+    const data = await cached('standings', TTL.stats, async () => {
+      const r = await axios.get(
+        'https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings?level=3&sort=gamesbehind%3Aasc%2Cwins%3Adesc%2Closses%3Aasc&type=0&seasontype=2',
+        { timeout: 10000 }
+      );
+      const rows = [];
+      let rank = { East: 1, West: 1 };
+      for (const conf of (r.data.children || [])) {
+        const confName = conf.name?.includes('East') ? 'East' : 'West';
+        for (const entry of (conf.standings?.entries || [])) {
+          const team = entry.team;
+          const abbr = team.abbreviation;
+          const nbaId = ESPN_ABBR_TO_NBA_ID[abbr] || team.id;
+          const stats = {};
+          for (const s of (entry.stats || [])) { stats[s.name] = s.value; }
+          // Split display name into city + name (e.g. "Boston Celtics" → "Boston" + "Celtics")
+          const parts = (team.displayName || '').split(' ');
+          const teamName = parts.slice(-1)[0];
+          const teamCity = parts.slice(0, -1).join(' ');
+          rows.push([
+            nbaId, teamCity, teamName,
+            Math.round(stats.wins || 0),
+            Math.round(stats.losses || 0),
+            (stats.winPercent || 0).toFixed(3),
+            confName, abbr,
+            rank[confName]++,
+          ]);
+        }
+      }
+      return {
+        resultSets: [{
+          name: 'Standings',
+          headers: ['TeamID','TeamCity','TeamName','WINS','LOSSES','WinPCT','Conference','TeamAbbreviation','PlayoffRank'],
+          rowSet: rows,
+        }]
+      };
+    });
     res.json(data);
   } catch (e) { console.error('standings:', e.message); res.status(500).json({ error: e.message }); }
 });
 
+// Scoreboard: ESPN API (works from Railway)
 app.get('/api/scoreboard', async (req, res) => {
   try {
     const data = await cached('scoreboard', TTL.live, async () => {
-      const r = await axios.get('https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json', {
-        headers: { ...NBA_HEADERS, Host: 'cdn.nba.com' }, timeout: 10000,
-      });
+      const r = await axios.get(
+        'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+        { timeout: 10000 }
+      );
       return r.data;
     });
     res.json(data);
