@@ -324,6 +324,11 @@ function parseLeaders(data: any, stat: string): Leader[] {
   }));
 }
 
+// ESPN logo abbreviations differ from NBA abbreviations for some teams
+const ESPN_LOGO_ABBR: Record<string, string> = {
+  'GSW': 'gs', 'NYK': 'ny', 'NOP': 'no', 'SAS': 'sa', 'UTA': 'utah', 'WAS': 'wsh',
+};
+
 function parseStandings(data: any): Standing[] {
   if (!data?.resultSets) return [];
   const rs = data.resultSets.find((r: any) => r.name === 'Standings');
@@ -337,6 +342,7 @@ function parseStandings(data: any): Standing[] {
     const teamCity = get(row, 'TeamCity');
     const teamName = get(row, 'TeamName');
     const abbr = get(row, 'TeamAbbreviation') || '';
+    const espnAbbr = ESPN_LOGO_ABBR[abbr] || abbr.toLowerCase();
     return {
       rank: parseInt(get(row, 'PlayoffRank')) || idx + 1,
       team: teamCity + ' ' + teamName,
@@ -345,7 +351,7 @@ function parseStandings(data: any): Standing[] {
       losses: parseInt(get(row, 'LOSSES')) || 0,
       pct: (parseFloat(get(row, 'WinPCT')) || 0).toFixed(3).replace('0.', '.'),
       conf: conf === 'East' ? 'East' : 'West',
-      logo: `https://cdn.nba.com/logos/nba/${teamId}/global/L/logo.svg`,
+      logo: `https://a.espncdn.com/i/teamlogos/nba/500/${espnAbbr}.png`,
       abbr,
     };
   });

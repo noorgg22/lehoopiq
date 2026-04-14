@@ -655,7 +655,7 @@ export default function TeamPage({ teamId, teamName, teamAbbr, onBack, onPlayerC
         ]);
         if (rosterRes.status === 'fulfilled') {
           const { rows } = parseResultSet(rosterRes.value, 'CommonTeamRoster');
-          setRoster(rows.slice(0, 12));
+          setRoster(rows.slice(0, 20));
         }
         if (infoRes.status === 'fulfilled') {
           const { rows } = parseResultSet(infoRes.value, 'TeamInfoCommon');
@@ -752,7 +752,7 @@ export default function TeamPage({ teamId, teamName, teamAbbr, onBack, onPlayerC
           {activeTab === 'roster' && (
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.textMuted, marginBottom: 16 }}>
-                2025-26 Roster · Top 12 Players · Click to view profile
+                2025-26 Roster · Click a player to view profile
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                 {roster.map((player, i) => {
