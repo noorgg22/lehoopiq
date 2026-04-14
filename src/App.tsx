@@ -141,25 +141,33 @@ function StandingsTable({ teams, conf, onTeamClick }: {
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color }}>{conf}ern</span>
       </div>
       {filtered.map((t, i) => (
-        <div
-          key={t.team}
-          onClick={() => onTeamClick(t.teamId || TEAM_IDS[t.team] || '', t.team, t.abbr)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '5px 4px', borderRadius: 8,
-            borderBottom: i === 5 ? `1px solid ${C.borderSub}` : 'none',
-            opacity: i >= 8 ? 0.45 : 1,
-            cursor: 'pointer',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = C.surfaceHi)}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-        >
-          <span style={{ fontSize: 10, color: C.textMuted, width: 18, textAlign: 'right', flexShrink: 0 }}>{t.rank}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, overflow: 'hidden' }}>
-            {t.logo && <img src={t.logo} alt="" style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} />}
-            <span style={{ fontSize: 11, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.team}</span>
+        <div key={t.team}>
+          <div
+            onClick={() => onTeamClick(t.teamId || TEAM_IDS[t.team] || '', t.team, t.abbr)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '5px 4px', borderRadius: 8,
+              borderBottom: i === 5 ? `1px solid ${C.borderSub}` : 'none',
+              opacity: i >= 10 ? 0.35 : 1,
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = C.surfaceHi)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span style={{ fontSize: 10, color: C.textMuted, width: 18, textAlign: 'right', flexShrink: 0 }}>{t.rank}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, overflow: 'hidden' }}>
+              {t.logo && <img src={t.logo} alt="" style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} />}
+              <span style={{ fontSize: 11, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.team}</span>
+            </div>
+            <span style={{ fontSize: 11, fontFamily: 'monospace', color: C.textSub, flexShrink: 0 }}>{t.wins}-{t.losses}</span>
+            <span style={{ fontSize: 11, fontFamily: 'monospace', color: i < 8 ? color : C.textMuted, width: 36, textAlign: 'right', flexShrink: 0 }}>{t.pct}</span>
           </div>
-          <span style={{ fontSize: 11, fontFamily: 'monospace', color: C.textSub, flexShrink: 0 }}>{t.wins}-{t.losses}</span>
-          <span style={{ fontSize: 11, fontFamily: 'monospace', color: i < 8 ? color : C.textMuted, width: 36, textAlign: 'right', flexShrink: 0 }}>{t.pct}</span>
+          {i === 9 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '3px 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'rgba(239,68,68,0.5)', borderTop: '1px dashed rgba(239,68,68,0.6)' }} />
+              <span style={{ fontSize: 8, color: 'rgba(239,68,68,0.7)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0 }}>Play-In</span>
+              <div style={{ flex: 1, height: 1, background: 'rgba(239,68,68,0.5)', borderTop: '1px dashed rgba(239,68,68,0.6)' }} />
+            </div>
+          )}
         </div>
       ))}
     </div>

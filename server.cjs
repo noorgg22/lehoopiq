@@ -177,6 +177,7 @@ function poolResponse(rows) {
 
 // ── NBA.com player ID lookup (for headshots) ──────────────────────────────────
 // nbaapi.com uses bbref IDs; cdn.nba.com headshots need the numeric NBA ID
+// IDs verified from commonteamroster endpoint (actual NBA.com data)
 const PLAYER_NBA_ID = {
   'LeBron James': '2544', 'Luka Dončić': '1629029', 'Stephen Curry': '201939',
   'Kevin Durant': '201142', 'Giannis Antetokounmpo': '203507', 'Nikola Jokić': '203999',
@@ -199,14 +200,24 @@ const PLAYER_NBA_ID = {
   'Darius Garland': '1629636', 'Mikal Bridges': '1628969', 'Anfernee Simons': '1629014',
   'Desmond Bane': '1630235', 'Tyler Herro': '1629625', 'Andrew Wiggins': '203952',
   'Tobias Harris': '202699', 'Nikola Vučević': '202696', 'Brook Lopez': '201572',
-  'Khris Middleton': '203114', 'Bobby Portis': '1626171', 'Kristaps Porzingis': '204001',
+  'Khris Middleton': '203114', 'Bobby Portis': '1626171', 'Kristaps Porziņģis': '204001',
+  'Kristaps Porzingis': '204001',
   'Fred VanVleet': '1627832', 'Isaiah Hartenstein': '1629598', 'Josh Hart': '1628404',
   'Ivica Zubac': '1627826', 'Deandre Ayton': '1629028', 'Chris Paul': '101108',
   'Austin Reaves': '1630559', 'Immanuel Quickley': '1630193', 'Obi Toppin': '1630167',
   'De\'Andre Hunter': '1629631', 'Bogdan Bogdanović': '203992', 'Clint Capela': '203991',
-  'Tari Eason': '1631108', 'Amen Thompson': '1641706', 'Ausar Thompson': '1641707',
-  'Cameron Johnson': '1629661', 'Keldon Johnson': '1629640', 'Cam Thomas': '1631021',
-  'Scoot Henderson': '1641705'
+  'Tari Eason': '1631108', 'Cameron Johnson': '1629661', 'Keldon Johnson': '1629640',
+  'Cam Thomas': '1631021', 'Scoot Henderson': '1641706',
+  // IDs verified from roster API:
+  'Donovan Clingan': '1642270', 'Zach Edey': '1641744', 'Walker Kessler': '1631117',
+  'Jalen Duren': '1631105', 'Ausar Thompson': '1641709', 'Amen Thompson': '1641706',
+  'Scotty Pippen Jr.': '1630590', 'Jaren Jackson Jr.': '1628991',
+  'Matisse Thybulle': '1629680', 'Jalen Suggs': '1630591', 'GG Jackson': '1641713',
+  'Dyson Daniels': '1630700', 'Jalen Johnson': '1630552', 'Cason Wallace': '1641717',
+  'Stephon Castle': '1642264', 'Kevin Porter Jr.': '1629645',
+  'Andrew Nembhard': '1629614', 'Jaden Ivey': '1631107', 'Isaiah Collier': '1642268',
+  'Michael Porter Jr.': '1629008', 'Jarace Walker': '1641716',
+  'Jalen Williams': '1631114', 'Aaron Nesmith': '1630174', 'Alperen Şengün': '1631167',
 };
 
 // ── HOME PAGE ─────────────────────────────────────────────────────────────────
@@ -220,8 +231,20 @@ app.get('/api/leaders', async (req, res) => {
     };
     const field = STAT_MAP[stat] || 'PTS';
     const pool = await getPool();
-    const sorted = [...pool]
-      .filter(p => p[field] != null)
+
+    // Deduplicate traded players: prefer combined "2TM"/"3TM" row; else keep highest GP
+    const byName = new Map();
+    for (const p of pool) {
+      const existing = byName.get(p.PLAYER_NAME);
+      const isCombined = /\dTM$/i.test(p.TEAM_ABBREVIATION || '');
+      if (!existing || isCombined || (!(/\dTM$/i.test(existing.TEAM_ABBREVIATION || '')) && p.GP > existing.GP)) {
+        byName.set(p.PLAYER_NAME, p);
+      }
+    }
+    const deduped = Array.from(byName.values());
+
+    const sorted = deduped
+      .filter(p => p[field] != null && p.GP >= 30)   // min 30 games to filter small samples
       .sort((a, b) => b[field] - a[field])
       .slice(0, 15);
     const headers = ['PLAYER_ID', 'PLAYER', 'TEAM', 'GP', field];
