@@ -343,14 +343,67 @@ app.get('/api/news', async (req, res) => {
 
 // ── PLAYER PROFILE — individual data ─────────────────────────────────────────
 
+// ESPN team abbreviation overrides (same as logo mapping)
+const ESPN_TEAM_ABBR_MAP = { 'GSW':'gs','NYK':'ny','NOP':'no','SAS':'sa','UTA':'utah','WAS':'wsh' };
+
+// Fetch ESPN team roster and cache it (ESPN works from Railway, no IP blocking)
+async function getESPNRoster(teamAbbr) {
+  const abbr = (ESPN_TEAM_ABBR_MAP[teamAbbr] || teamAbbr || '').toLowerCase();
+  return cached(`espn_roster_${abbr}`, TTL.stats, async () => {
+    const r = await axios.get(
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${abbr}/roster`,
+      { timeout: 8000 }
+    );
+    return r.data?.athletes || [];
+  });
+}
+
+// Find a player in ESPN roster by name (accent/case insensitive)
+function normalizeName(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z ]/g,'').trim();
+}
+
+async function findESPNPlayer(playerName, teamAbbr) {
+  try {
+    const athletes = await getESPNRoster(teamAbbr);
+    const target = normalizeName(playerName);
+    return athletes.find(a => normalizeName(a.displayName || `${a.firstName||''} ${a.lastName||''}`) === target) || null;
+  } catch { return null; }
+}
+
+// Build CommonPlayerInfo-format response from ESPN athlete object
+function espnToPlayerInfo(athlete, poolPlayer, nbaId) {
+  const draft = athlete.draft || {};
+  const college = athlete.college || {};
+  const pos = athlete.position || {};
+  const birthPlace = athlete.birthPlace || {};
+  const headers = ['PERSON_ID','DISPLAY_FIRST_LAST','TEAM_ID','TEAM_NAME','TEAM_CITY','TEAM_ABBREVIATION',
+    'JERSEY','POSITION','HEIGHT','WEIGHT','BIRTHDATE','COUNTRY','SCHOOL',
+    'DRAFT_YEAR','DRAFT_ROUND','DRAFT_NUMBER','FROM_YEAR','TO_YEAR','GREATEST_75_FLAG'];
+  const row = [
+    nbaId,
+    athlete.displayName || poolPlayer.PLAYER_NAME,
+    '', '', '', poolPlayer.TEAM_ABBREVIATION || '',
+    athlete.jersey || '',
+    pos.abbreviation || '',
+    athlete.displayHeight || '',
+    athlete.weight ? String(athlete.weight) : '',
+    athlete.dateOfBirth ? athlete.dateOfBirth.split('T')[0] : '',
+    birthPlace.country || '',
+    college.name || '',
+    draft.year ? String(draft.year) : '',
+    draft.round ? String(draft.round) : '',
+    draft.selection ? String(draft.selection) : '',
+    SEASON.split('-')[0], SEASON.split('-')[0], 'N'
+  ];
+  return { resultSets: [{ name: 'CommonPlayerInfo', headers, rowSet: [row] }] };
+}
+
 // Reverse lookup: NBA.com numeric ID → pool player
 function poolPlayerById(pool, nbaId) {
   const sid = String(nbaId);
-  // Find player name by searching PLAYER_NBA_ID map
   for (const [name, id] of Object.entries(PLAYER_NBA_ID)) {
-    if (id === sid) {
-      return pool.find(p => p.PLAYER_NAME === name) || null;
-    }
+    if (id === sid) return pool.find(p => p.PLAYER_NAME === name) || null;
   }
   return null;
 }
@@ -384,16 +437,17 @@ function syntheticCareerStats(p) {
 app.get('/api/player-info/:id', async (req, res) => {
   const nbaId = req.params.id;
   try {
-    // Try stats.nba.com (fast timeout now) then fall back to pool
     const data = await cached(`pinfo_${nbaId}`, TTL.player, async () => {
-      try {
-        return await nba('commonplayerinfo', { PlayerID: nbaId });
-      } catch {
-        const pool = await getPool();
-        const p = poolPlayerById(pool, nbaId);
-        if (p) return syntheticPlayerInfo(p, nbaId);
-        throw new Error('Player not found');
-      }
+      // 1. Try stats.nba.com
+      try { return await nba('commonplayerinfo', { PlayerID: nbaId }); } catch {}
+      // 2. Fall back to ESPN roster (works from Railway)
+      const pool = await getPool();
+      const p = poolPlayerById(pool, nbaId);
+      if (!p) throw new Error('Player not found');
+      const athlete = await findESPNPlayer(p.PLAYER_NAME, p.TEAM_ABBREVIATION);
+      if (athlete) return espnToPlayerInfo(athlete, p, nbaId);
+      // 3. Last resort: bare-bones synthetic
+      return syntheticPlayerInfo(p, nbaId);
     });
     res.json(data);
   } catch (e) { console.error('player-info:', e.message); res.status(500).json({ error: e.message }); }
