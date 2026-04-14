@@ -101,8 +101,8 @@ function buildMergedPool(totals, advanced) {
       PLAYER_NAME: t.playerName,
       TEAM_ABBREVIATION: t.team,
       GP: gp,
-      MIN: t.minutesPg,
-      MIN_TOTAL: (t.minutesPg || 0) * gp,
+      MIN: (t.minutesPg || 0) / gp,   // nbaapi.com minutesPg is total minutes, divide by games for per-game
+      MIN_TOTAL: t.minutesPg || 0,
       PTS: t.points / gp,
       REB: t.totalRb / gp,
       AST: t.assists / gp,

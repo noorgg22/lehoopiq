@@ -791,8 +791,8 @@ export default function PlayerProfile({ playerId, playerName, team, onBack }: Pl
                       { label: 'Height', value: bio.HEIGHT },
                       { label: 'Weight', value: bio.WEIGHT ? `${bio.WEIGHT} lbs` : null },
                       { label: 'Age', value: bio.BIRTHDATE ? `${new Date().getFullYear() - new Date(bio.BIRTHDATE).getFullYear()}` : null },
-                      { label: 'College', value: bio.SCHOOL || 'International' },
-                      { label: 'Draft', value: bio.DRAFT_YEAR ? `${bio.DRAFT_YEAR} R${bio.DRAFT_ROUND} #${bio.DRAFT_NUMBER}` : 'Undrafted' },
+                      { label: 'College', value: bio.SCHOOL || null },
+                      { label: 'Draft', value: bio.DRAFT_YEAR ? `${bio.DRAFT_YEAR} R${bio.DRAFT_ROUND} #${bio.DRAFT_NUMBER}` : null },
                       { label: 'Experience', value: bio.SEASON_EXP ? `${bio.SEASON_EXP} years` : null },
                       { label: 'Country', value: bio.COUNTRY },
                     ].filter(i => i.value).map((item, i) => (
