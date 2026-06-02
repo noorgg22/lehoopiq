@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const PROXY = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001/api';
+const PROXY = import.meta.env.VITE_PROXY_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? '/api'
+    : 'http://localhost:3001/api');
 
 const C = {
   bg: '#09090b', surface: '#18181b', surfaceHi: '#27272a',

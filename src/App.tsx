@@ -3,7 +3,10 @@ import PlayerProfile from './PlayerProfile';
 import ShamelessMeter from './ShamelessMeter';
 import TeamPage from './TeamPage';
 
-const PROXY = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001/api';
+const PROXY = import.meta.env.VITE_PROXY_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? '/api'
+    : 'http://localhost:3001/api');
 const ESPN  = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 
 // ── Design tokens (mirrored from CSS vars for inline styles) ─────────────────

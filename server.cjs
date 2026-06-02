@@ -971,6 +971,18 @@ app.get('/api/cache-status', (req, res) => {
   res.json(status);
 });
 
+// ── Serve built frontend (production) ────────────────────────────────────────
+const path = require('path');
+const fs   = require('fs');
+const dist = path.join(__dirname, 'dist');
+if (fs.existsSync(dist)) {
+  app.use(express.static(dist));
+  // SPA fallback — any non-API route returns index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(dist, 'index.html'));
+  });
+}
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
