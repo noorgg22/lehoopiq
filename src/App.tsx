@@ -52,47 +52,18 @@ const ODDS_ACCENT: Record<string, { color: string; dimBg: string }> = {
 const CATEGORIES = ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks'];
 const ODDS_TABS  = ['Championship', 'Eastern Conf', 'Western Conf'];
 
-const ODDS_UPDATED = 'April 7, 2026';
+// NBA Finals: San Antonio Spurs vs New York Knicks — updated June 2, 2026
+const ODDS_UPDATED = 'June 2, 2026';
 const ODDS: Record<string, { team: string; odds: string; abbr: string }[]> = {
   'Championship': [
-    { team: 'Oklahoma City Thunder',  odds: '+130',   abbr: 'okc' },
-    { team: 'Boston Celtics',         odds: '+550',   abbr: 'bos' },
-    { team: 'San Antonio Spurs',      odds: '+600',   abbr: 'sa'  },
-    { team: 'Denver Nuggets',         odds: '+800',   abbr: 'den' },
-    { team: 'Cleveland Cavaliers',    odds: '+1300',  abbr: 'cle' },
-    { team: 'New York Knicks',        odds: '+1600',  abbr: 'ny'  },
-    { team: 'Detroit Pistons',        odds: '+2500',  abbr: 'det' },
-    { team: 'Los Angeles Lakers',     odds: '+3000',  abbr: 'lal' },
-    { team: 'Minnesota Timberwolves', odds: '+4500',  abbr: 'min' },
-    { team: 'Houston Rockets',        odds: '+7500',  abbr: 'hou' },
-    { team: 'Philadelphia 76ers',     odds: '+8000',  abbr: 'phi' },
-    { team: 'Atlanta Hawks',          odds: '+10000', abbr: 'atl' },
-    { team: 'Golden State Warriors',  odds: '+12000', abbr: 'gs'  },
-    { team: 'Los Angeles Clippers',   odds: '+15000', abbr: 'lac' },
-    { team: 'Phoenix Suns',           odds: '+20000', abbr: 'phx' },
+    { team: 'San Antonio Spurs',      odds: '-145',  abbr: 'sa'  },
+    { team: 'New York Knicks',        odds: '+120',  abbr: 'ny'  },
   ],
   'Eastern Conf': [
-    { team: 'Boston Celtics',         odds: '+150',   abbr: 'bos' },
-    { team: 'Cleveland Cavaliers',    odds: '+350',   abbr: 'cle' },
-    { team: 'New York Knicks',        odds: '+400',   abbr: 'ny'  },
-    { team: 'Detroit Pistons',        odds: '+500',   abbr: 'det' },
-    { team: 'Atlanta Hawks',          odds: '+1200',  abbr: 'atl' },
-    { team: 'Philadelphia 76ers',     odds: '+1400',  abbr: 'phi' },
-    { team: 'Toronto Raptors',        odds: '+3000',  abbr: 'tor' },
-    { team: 'Charlotte Hornets',      odds: '+5000',  abbr: 'cha' },
-    { team: 'Orlando Magic',          odds: '+8000',  abbr: 'orl' },
-    { team: 'Miami Heat',             odds: '+10000', abbr: 'mia' },
+    { team: 'New York Knicks',        odds: '-10000', abbr: 'ny'  },
   ],
   'Western Conf': [
-    { team: 'Oklahoma City Thunder',  odds: '-130',   abbr: 'okc' },
-    { team: 'San Antonio Spurs',      odds: '+300',   abbr: 'sa'  },
-    { team: 'Denver Nuggets',         odds: '+550',   abbr: 'den' },
-    { team: 'Los Angeles Lakers',     odds: '+700',   abbr: 'lal' },
-    { team: 'Houston Rockets',        odds: '+1200',  abbr: 'hou' },
-    { team: 'Minnesota Timberwolves', odds: '+1800',  abbr: 'min' },
-    { team: 'Golden State Warriors',  odds: '+4000',  abbr: 'gs'  },
-    { team: 'Los Angeles Clippers',   odds: '+5000',  abbr: 'lac' },
-    { team: 'Portland Trail Blazers', odds: '+8000',  abbr: 'por' },
+    { team: 'San Antonio Spurs',      odds: '-10000', abbr: 'sa'  },
   ],
 };
 
@@ -411,83 +382,113 @@ function LeagueLeadersPanel({ leaders, onPlayerClick }: {
 }
 
 // ── Betting Odds ──────────────────────────────────────────────────────────────
+// Convert American odds to implied probability
+function impliedProb(odds: string): string {
+  const n = parseInt(odds);
+  if (isNaN(n)) return '—';
+  const prob = n < 0 ? (-n / (-n + 100)) : (100 / (n + 100));
+  return `${(prob * 100).toFixed(1)}%`;
+}
+
 function BettingOddsPanel() {
-  const [active, setActive] = useState('Championship');
-  const { color } = ODDS_ACCENT[active];
-  const list = ODDS[active] || [];
   const isFav = (odds: string) => odds.startsWith('-') || parseInt(odds.replace('+', '')) <= 300;
+
+  // Finals matchup: Spurs vs Knicks
+  const spursOdds = '-145';
+  const knicksOdds = '+120';
+  const spursProb = parseFloat(impliedProb(spursOdds));
+  const knicksProb = parseFloat(impliedProb(knicksOdds));
 
   return (
     <div>
-      {/* Tabs */}
+      {/* NBA Finals Banner */}
       <div style={{
-        display: 'flex', gap: 4, marginBottom: 16,
-        padding: 4, background: C.canvas, borderRadius: 8,
+        background: 'linear-gradient(135deg, rgba(200,16,46,0.08), rgba(29,66,138,0.08))',
+        border: `1px solid rgba(200,16,46,0.2)`,
+        borderRadius: 10, padding: '14px 16px', marginBottom: 16,
       }}>
-        {ODDS_TABS.map(tab => {
-          const a = ODDS_ACCENT[tab];
-          const isActive = tab === active;
-          return (
-            <button
-              key={tab}
-              onClick={() => setActive(tab)}
-              style={{
-                flex: 1, fontSize: 9, fontWeight: 700,
-                letterSpacing: '0.1em', textTransform: 'uppercase',
-                padding: '6px 4px', borderRadius: 6,
-                background: isActive ? a.dimBg : 'transparent',
-                color: isActive ? a.color : C.textMuted,
-                border: isActive ? `1px solid ${a.color}35` : '1px solid transparent',
-                transition: 'all 150ms ease',
-              }}
-            >{tab}</button>
-          );
-        })}
-      </div>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', color: C.red, textTransform: 'uppercase', marginBottom: 10 }}>
+          🏆 2026 NBA Finals
+        </div>
 
-      {/* Column headers */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 8px', marginBottom: 8 }}>
-        <span style={{ fontSize: 9, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Team</span>
-        <span style={{ fontSize: 9, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em' }}>DraftKings</span>
-      </div>
-
-      {list.map((item, i) => {
-        const fav = isFav(item.odds);
-        return (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '7px 8px', borderRadius: 7,
-            background: i === 0 ? `${color}08` : 'transparent',
-            border: i === 0 ? `1px solid ${color}22` : '1px solid transparent',
-            marginBottom: 2,
-            transition: 'background 120ms ease',
-          }}>
-            <span style={{
-              width: 18, textAlign: 'right', fontSize: 10,
-              fontFamily: C.mono, color: C.textMuted,
-              fontVariantNumeric: 'tabular-nums',
-            }}>{i + 1}</span>
-            <img
-              src={`https://a.espncdn.com/i/teamlogos/nba/500/${item.abbr}.png`}
-              alt={item.team}
-              style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-            <span style={{
-              flex: 1, fontSize: 12, color: C.text,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>{item.team}</span>
-            <span style={{
-              fontFamily: C.mono, fontSize: 12, fontWeight: 700, flexShrink: 0,
-              color: fav ? C.green : C.textSub,
-              background: fav ? 'rgba(74,222,128,0.08)' : 'transparent',
-              padding: '2px 8px', borderRadius: 5,
-              fontVariantNumeric: 'tabular-nums',
-            }}>{item.odds}</span>
+        {/* Matchup */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          {/* Spurs */}
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <img src="https://a.espncdn.com/i/teamlogos/nba/500/sa.png" alt="Spurs"
+              style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 4 }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.text }}>San Antonio</div>
+            <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.05em' }}>SPURS</div>
           </div>
-        );
-      })}
-      <p style={{ fontSize: 9, color: C.textMuted, textAlign: 'center', marginTop: 14, letterSpacing: '0.05em' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.textMuted }}>vs</div>
+          {/* Knicks */}
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <img src="https://a.espncdn.com/i/teamlogos/nba/500/ny.png" alt="Knicks"
+              style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 4 }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.text }}>New York</div>
+            <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.05em' }}>KNICKS</div>
+          </div>
+        </div>
+
+        {/* Win probability bar */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: C.mono, color: C.green }}>
+              {impliedProb(spursOdds)}
+            </span>
+            <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', alignSelf: 'center' }}>
+              Implied Win Prob
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: C.mono, color: C.sky }}>
+              {impliedProb(knicksOdds)}
+            </span>
+          </div>
+          <div style={{ height: 6, borderRadius: 99, background: C.surfaceRaised, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${(spursProb / (spursProb + knicksProb)) * 100}%`,
+              background: `linear-gradient(90deg, ${C.green}, ${C.emerald})`,
+              borderRadius: 99,
+            }} />
+          </div>
+        </div>
+
+        {/* Odds row */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{
+            flex: 1, textAlign: 'center', padding: '6px 0',
+            background: 'rgba(74,222,128,0.08)', borderRadius: 6,
+            border: '1px solid rgba(74,222,128,0.2)',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: C.mono, color: C.green }}>{spursOdds}</div>
+            <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.08em' }}>SPURS · FAV</div>
+          </div>
+          <div style={{
+            flex: 1, textAlign: 'center', padding: '6px 0',
+            background: 'rgba(56,189,248,0.08)', borderRadius: 6,
+            border: '1px solid rgba(56,189,248,0.2)',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: C.mono, color: C.sky }}>{knicksOdds}</div>
+            <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.08em' }}>KNICKS · DOG</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Vig / overround note */}
+      <div style={{
+        padding: '8px 10px', background: C.surfaceRaised,
+        borderRadius: 6, marginBottom: 4,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <span style={{ fontSize: 10, color: C.textMuted }}>Market overround (vig)</span>
+        <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 600, color: C.amber }}>
+          {((spursProb + knicksProb) - 100).toFixed(1)}%
+        </span>
+      </div>
+
+      <p style={{ fontSize: 9, color: C.textMuted, textAlign: 'center', marginTop: 12, letterSpacing: '0.05em' }}>
         ODDS VIA DRAFTKINGS · UPDATED {ODDS_UPDATED.toUpperCase()}
       </p>
     </div>
@@ -862,6 +863,35 @@ export default function App() {
             </div>
           </div>
 
+        </div>
+
+        {/* ── Methodology strip ───────────────────────────────────────────── */}
+        <div style={{
+          marginTop: 24,
+          background: C.surface,
+          border: `1px solid ${C.border}`,
+          borderRadius: 12, padding: '20px 28px',
+          display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'center',
+        }}>
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 4 }}>
+              Analytics Stack
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>LeHoopIQ</div>
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>Basketball Intelligence Platform</div>
+          </div>
+          <div style={{ width: 1, height: 40, background: C.border, flexShrink: 0 }} />
+          {[
+            { label: 'Data Sources', value: 'NBA Stats API · ESPN API · nbaapi.com' },
+            { label: 'Models', value: 'Bayesian inference · Implied probability · Efficiency ratings' },
+            { label: 'Stack', value: 'React · TypeScript · Plotly.js · Express · Vercel' },
+            { label: 'Refresh', value: 'Live scores every 60s · Stats cached 30min' },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ minWidth: 150 }}>
+              <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
+              <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>{value}</div>
+            </div>
+          ))}
         </div>
 
         {/* ── Shameless Meter CTA ─────────────────────────────────────────── */}
