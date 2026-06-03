@@ -671,6 +671,37 @@ const ESPN_LOGO_ABBR: Record<string, string> = {
   'GSW': 'gs', 'NYK': 'ny', 'NOP': 'no', 'SAS': 'sa', 'UTA': 'utah', 'WAS': 'wsh',
 };
 
+// Parse standings directly from ESPN API (client-side, no proxy needed)
+function parseStandingsFromESPN(espn: any): Standing[] {
+  const children = espn?.children || [];
+  const rows: Standing[] = [];
+  for (const conf of children) {
+    const confName = conf.name?.includes('East') ? 'East' : 'West';
+    const entries = conf?.standings?.entries || [];
+    entries.forEach((entry: any, idx: number) => {
+      const team   = entry.team;
+      const abbr   = team?.abbreviation || '';
+      const espnAbbr = ESPN_LOGO_ABBR[abbr] || abbr.toLowerCase();
+      const stats: Record<string, number> = {};
+      (entry.stats || []).forEach((s: any) => { stats[s.name] = s.value; });
+      const wins   = stats.wins   || 0;
+      const losses = stats.losses || 0;
+      rows.push({
+        rank:   idx + 1,
+        team:   team?.displayName || '',
+        teamId: team?.id || '',
+        wins,
+        losses,
+        pct:    (wins / Math.max(wins + losses, 1)).toFixed(3).replace('0.', '.'),
+        conf:   confName,
+        logo:   `https://a.espncdn.com/i/teamlogos/nba/500/${espnAbbr}.png`,
+        abbr,
+      });
+    });
+  }
+  return rows;
+}
+
 function parseStandings(data: any): Standing[] {
   if (!data?.resultSets) return [];
   const rs = data.resultSets.find((r: any) => r.name === 'Standings');
@@ -752,20 +783,27 @@ export default function App() {
       })));
     } catch (e) { console.error('ESPN fetch failed', e); }
 
+    // Fetch standings directly from ESPN — no proxy needed, CORS-accessible
+    try {
+      const espnStandRes = await fetch(
+        'https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?season=2026',
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (espnStandRes.ok) {
+        const espnStand = await espnStandRes.json();
+        const parsed = parseStandingsFromESPN(espnStand);
+        if (parsed.length > 0) setStandings(parsed);
+      }
+    } catch (e) { console.error('Standings fetch failed', e); }
+
+    // Proxy status: check if nbaapi-backed leaders endpoint responds
+    // We do this quietly — if it fails, leaders panel shows its own empty state
     let pingOk = false;
     try {
-      const pingRes = await fetch(`${PROXY}/news`, { signal: AbortSignal.timeout(12000) });
+      const pingRes = await fetch(`${PROXY}/leaders?stat=PTS`, { signal: AbortSignal.timeout(10000) });
       pingOk = pingRes.ok;
     } catch { pingOk = false; }
     setProxyOnline(pingOk);
-
-    if (pingOk) {
-      try {
-        const standData = await fetch(`${PROXY}/standings`).then(r => r.json());
-        const parsed = parseStandings(standData);
-        if (parsed.length > 0) setStandings(parsed);
-      } catch (e) { console.error('Data fetch error:', e); }
-    }
     setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }));
     setLoading(false);
   }, []);

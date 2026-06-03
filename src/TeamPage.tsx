@@ -657,8 +657,14 @@ export default function TeamPage({ teamId, teamName, teamAbbr, onBack, onPlayerC
           fetch(`${PROXY}/team-info/${teamId}`).then(r => r.json()),
         ]);
         if (rosterRes.status === 'fulfilled') {
-          const { rows } = parseResultSet(rosterRes.value, 'CommonTeamRoster');
-          setRoster(rows.slice(0, 20));
+          const val = rosterRes.value;
+          const { rows } = parseResultSet(val, 'CommonTeamRoster');
+          // Store headshot_base alongside rows so player cards use correct CDN
+          const enriched = rows.slice(0, 20).map((row: any) => ({
+            ...row,
+            _headshot_base: val.headshot_base || null,
+          }));
+          setRoster(enriched);
         }
         if (infoRes.status === 'fulfilled') {
           const { rows } = parseResultSet(infoRes.value, 'TeamInfoCommon');
@@ -760,7 +766,10 @@ export default function TeamPage({ teamId, teamName, teamAbbr, onBack, onPlayerC
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                 {roster.map((player, i) => {
                   const playerId = player.PLAYER_ID?.toString();
-                  const playerImg = `https://cdn.nba.com/headshots/nba/latest/1040x760/${playerId}.png`;
+                  const headshotBase = player._headshot_base;
+                  const playerImg = headshotBase
+                    ? `${headshotBase}/${playerId}.png`
+                    : `https://cdn.nba.com/headshots/nba/latest/1040x760/${playerId}.png`;
                   const silhouette = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Crect width='72' height='72' fill='%2327272a' rx='12'/%3E%3Ccircle cx='36' cy='26' r='13' fill='%2352525b'/%3E%3Cellipse cx='36' cy='60' rx='22' ry='16' fill='%2352525b'/%3E%3C/svg%3E`;
                   return (
                     <div key={i}
@@ -774,10 +783,13 @@ export default function TeamPage({ teamId, teamName, teamAbbr, onBack, onPlayerC
                           style={{ width: 72, height: 72, borderRadius: 12, objectFit: 'cover', objectPosition: 'top', background: C.surfaceHi, border: `2px solid ${primary}40` }}
                           onError={(e) => {
                             const img = e.target as HTMLImageElement;
-                            // Try the smaller resolution first, then fall back to silhouette
                             if (!img.dataset.fallback) {
                               img.dataset.fallback = '1';
-                              img.src = `https://cdn.nba.com/headshots/nba/latest/260x190/${playerId}.png`;
+                              // If using ESPN CDN, no smaller resolution to try — go to silhouette
+                              // If using NBA CDN, try smaller resolution first
+                              img.src = headshotBase
+                                ? silhouette
+                                : `https://cdn.nba.com/headshots/nba/latest/260x190/${playerId}.png`;
                             } else {
                               img.onerror = null;
                               img.src = silhouette;
