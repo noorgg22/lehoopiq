@@ -616,6 +616,7 @@ function RostersPage({ onTeamClick }: {
                   borderRadius: 10, padding: '16px 10px',
                   cursor: 'pointer', textAlign: 'center',
                   transition: 'all 150ms ease',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.background = C.surfaceHover;
