@@ -67,6 +67,39 @@ const ODDS: Record<string, { team: string; odds: string; abbr: string }[]> = {
   ],
 };
 
+const NBA_TEAM_LIST = [
+  { id: '1610612737', name: 'Atlanta Hawks',         abbr: 'ATL', espn: 'atl'  },
+  { id: '1610612738', name: 'Boston Celtics',         abbr: 'BOS', espn: 'bos'  },
+  { id: '1610612751', name: 'Brooklyn Nets',          abbr: 'BKN', espn: 'bkn'  },
+  { id: '1610612766', name: 'Charlotte Hornets',      abbr: 'CHA', espn: 'cha'  },
+  { id: '1610612741', name: 'Chicago Bulls',          abbr: 'CHI', espn: 'chi'  },
+  { id: '1610612739', name: 'Cleveland Cavaliers',    abbr: 'CLE', espn: 'cle'  },
+  { id: '1610612742', name: 'Dallas Mavericks',       abbr: 'DAL', espn: 'dal'  },
+  { id: '1610612743', name: 'Denver Nuggets',         abbr: 'DEN', espn: 'den'  },
+  { id: '1610612765', name: 'Detroit Pistons',        abbr: 'DET', espn: 'det'  },
+  { id: '1610612744', name: 'Golden State Warriors',  abbr: 'GSW', espn: 'gs'   },
+  { id: '1610612745', name: 'Houston Rockets',        abbr: 'HOU', espn: 'hou'  },
+  { id: '1610612754', name: 'Indiana Pacers',         abbr: 'IND', espn: 'ind'  },
+  { id: '1610612746', name: 'Los Angeles Clippers',   abbr: 'LAC', espn: 'lac'  },
+  { id: '1610612747', name: 'Los Angeles Lakers',     abbr: 'LAL', espn: 'lal'  },
+  { id: '1610612763', name: 'Memphis Grizzlies',      abbr: 'MEM', espn: 'mem'  },
+  { id: '1610612748', name: 'Miami Heat',             abbr: 'MIA', espn: 'mia'  },
+  { id: '1610612749', name: 'Milwaukee Bucks',        abbr: 'MIL', espn: 'mil'  },
+  { id: '1610612750', name: 'Minnesota Timberwolves', abbr: 'MIN', espn: 'min'  },
+  { id: '1610612740', name: 'New Orleans Pelicans',   abbr: 'NOP', espn: 'no'   },
+  { id: '1610612752', name: 'New York Knicks',        abbr: 'NYK', espn: 'ny'   },
+  { id: '1610612760', name: 'Oklahoma City Thunder',  abbr: 'OKC', espn: 'okc'  },
+  { id: '1610612753', name: 'Orlando Magic',          abbr: 'ORL', espn: 'orl'  },
+  { id: '1610612755', name: 'Philadelphia 76ers',     abbr: 'PHI', espn: 'phi'  },
+  { id: '1610612756', name: 'Phoenix Suns',           abbr: 'PHX', espn: 'phx'  },
+  { id: '1610612757', name: 'Portland Trail Blazers', abbr: 'POR', espn: 'por'  },
+  { id: '1610612758', name: 'Sacramento Kings',       abbr: 'SAC', espn: 'sac'  },
+  { id: '1610612759', name: 'San Antonio Spurs',      abbr: 'SAS', espn: 'sa'   },
+  { id: '1610612761', name: 'Toronto Raptors',        abbr: 'TOR', espn: 'tor'  },
+  { id: '1610612762', name: 'Utah Jazz',              abbr: 'UTA', espn: 'utah' },
+  { id: '1610612764', name: 'Washington Wizards',     abbr: 'WAS', espn: 'wsh'  },
+];
+
 const TEAM_IDS: Record<string, string> = {
   'Atlanta Hawks': '1610612737', 'Boston Celtics': '1610612738',
   'Brooklyn Nets': '1610612751', 'Charlotte Hornets': '1610612766',
@@ -274,18 +307,61 @@ function ScoreCard({ game }: { game: Game }) {
   );
 }
 
+const STAT_MAP: Record<string, string> = {
+  Points: 'PTS', Rebounds: 'REB', Assists: 'AST', Steals: 'STL', Blocks: 'BLK',
+};
+
 // ── League Leaders ────────────────────────────────────────────────────────────
-function LeagueLeadersPanel({ leaders, onPlayerClick }: {
-  leaders: Record<string, Leader[]>;
+function LeagueLeadersPanel({ proxyOnline, onPlayerClick }: {
+  proxyOnline: boolean;
   onPlayerClick: (id: string, name: string, team: string) => void;
 }) {
-  const [active, setActive] = useState('Points');
+  const [active, setActive]         = useState('Points');
+  const [seasonType, setSeasonType] = useState<'Regular Season' | 'Playoffs'>('Regular Season');
+  const [leaders, setLeaders]       = useState<Record<string, Leader[]>>({});
+  const [panelLoading, setPanelLoading] = useState(false);
+
+  useEffect(() => {
+    if (!proxyOnline) return;
+    setPanelLoading(true);
+    const stat = STAT_MAP[active];
+    fetch(`${PROXY}/leaders?stat=${stat}&seasonType=${encodeURIComponent(seasonType)}`)
+      .then(r => r.json())
+      .then(data => {
+        setLeaders(prev => ({ ...prev, [`${active}_${seasonType}`]: parseLeaders(data, stat) }));
+        setPanelLoading(false);
+      })
+      .catch(() => setPanelLoading(false));
+  }, [active, seasonType, proxyOnline]);
+
+  const key   = `${active}_${seasonType}`;
   const { color, dimBg } = ACCENT[active];
-  const list = leaders[active] || [];
-  const max  = parseFloat(list[0]?.value || '1');
+  const list  = leaders[key] || [];
+  const max   = parseFloat(list[0]?.value || '1');
 
   return (
     <div>
+      {/* Season type toggle */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        {(['Regular Season', 'Playoffs'] as const).map(type => {
+          const isActive = seasonType === type;
+          return (
+            <button
+              key={type}
+              onClick={() => setSeasonType(type)}
+              style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+                textTransform: 'uppercase', padding: '5px 14px', borderRadius: 6,
+                background: isActive ? C.redDim : 'transparent',
+                color: isActive ? C.red : C.textMuted,
+                border: isActive ? `1px solid ${C.redBorder}` : `1px solid ${C.border}`,
+                cursor: 'pointer', transition: 'all 150ms ease',
+              }}
+            >{type === 'Regular Season' ? 'Reg. Season' : 'Playoffs'}</button>
+          );
+        })}
+      </div>
+
       {/* Category tabs */}
       <div style={{
         display: 'flex', gap: 4, marginBottom: 16,
@@ -305,16 +381,22 @@ function LeagueLeadersPanel({ leaders, onPlayerClick }: {
                 background: isActive ? a.dimBg : 'transparent',
                 color: isActive ? a.color : C.textMuted,
                 border: isActive ? `1px solid ${a.color}35` : '1px solid transparent',
-                transition: 'all 150ms ease',
+                transition: 'all 150ms ease', cursor: 'pointer',
               }}
             >{cat}</button>
           );
         })}
       </div>
 
-      {list.length === 0 ? (
+      {panelLoading ? (
+        <Spinner />
+      ) : !proxyOnline ? (
         <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '24px 0' }}>
-          Start the proxy server to load live stats
+          Connect to the proxy to load live stats
+        </p>
+      ) : list.length === 0 ? (
+        <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '24px 0' }}>
+          No data available
         </p>
       ) : list.map((p, i) => (
         <div
@@ -336,16 +418,22 @@ function LeagueLeadersPanel({ leaders, onPlayerClick }: {
           }}>{i + 1}</span>
 
           {/* Photo */}
-          <img
-            src={`https://cdn.nba.com/headshots/nba/latest/260x190/${p.playerId}.png`}
-            alt={p.name}
-            style={{
-              width: 30, height: 30, borderRadius: '50%',
-              objectFit: 'cover', background: C.surfaceRaised, flexShrink: 0,
-              border: i === 0 ? `1px solid ${color}50` : `1px solid ${C.border}`,
-            }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+            border: i === 0 ? `2px solid ${color}60` : `1px solid ${C.border}`,
+            overflow: 'hidden', background: C.surfaceRaised,
+          }}>
+            <img
+              src={`https://cdn.nba.com/headshots/nba/latest/260x190/${p.playerId}.png`}
+              alt={p.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                const el = e.target as HTMLImageElement;
+                el.src = `https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/${p.playerId}.png`;
+                el.onerror = () => { el.style.display = 'none'; };
+              }}
+            />
+          </div>
 
           {/* Name + bar */}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -495,6 +583,71 @@ function BettingOddsPanel() {
   );
 }
 
+// ── Rosters Page ─────────────────────────────────────────────────────────────
+function RostersPage({ onTeamClick }: {
+  onTeamClick: (teamId: string, teamName: string, teamAbbr: string) => void;
+}) {
+  const confs = [
+    { label: 'Eastern Conference', color: C.emerald, teams: NBA_TEAM_LIST.filter((_, i) => i < 15) },
+    { label: 'Western Conference', color: C.sky,     teams: NBA_TEAM_LIST.filter((_, i) => i >= 15) },
+  ];
+  return (
+    <div>
+      {confs.map(conf => (
+        <div key={conf.label} style={{ marginBottom: 36 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: conf.color, display: 'inline-block' }} />
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
+              textTransform: 'uppercase', color: conf.color,
+            }}>{conf.label}</span>
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+            gap: 10,
+          }}>
+            {conf.teams.map(team => (
+              <button
+                key={team.id}
+                onClick={() => onTeamClick(team.id, team.name, team.abbr)}
+                style={{
+                  background: C.surfaceRaised, border: `1px solid ${C.border}`,
+                  borderRadius: 10, padding: '16px 10px',
+                  cursor: 'pointer', textAlign: 'center',
+                  transition: 'all 150ms ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = C.surfaceHover;
+                  e.currentTarget.style.borderColor = `${conf.color}50`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = C.surfaceRaised;
+                  e.currentTarget.style.borderColor = C.border;
+                }}
+              >
+                <img
+                  src={`https://a.espncdn.com/i/teamlogos/nba/500/${team.espn}.png`}
+                  alt={team.name}
+                  style={{ width: 44, height: 44, objectFit: 'contain', marginBottom: 8 }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.text, lineHeight: 1.3 }}>
+                  {team.name}
+                </div>
+                <div style={{
+                  fontSize: 9, color: conf.color, fontFamily: C.mono,
+                  fontWeight: 700, letterSpacing: '0.1em', marginTop: 4,
+                }}>{team.abbr}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Data parsers ──────────────────────────────────────────────────────────────
 function parseLeaders(data: any, stat: string): Leader[] {
   const rs = data?.resultSets?.[0] ?? data?.resultSet;
@@ -547,11 +700,11 @@ function parseStandings(data: any): Standing[] {
 export default function App() {
   const [standings,    setStandings]    = useState<Standing[]>([]);
   const [games,        setGames]        = useState<Game[]>([]);
-  const [leaders,      setLeaders]      = useState<Record<string, Leader[]>>({});
   const [news,         setNews]         = useState<{ headline: string; time: string; tag: string; link: string }[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [proxyOnline,  setProxyOnline]  = useState(false);
   const [lastUpdated,  setLastUpdated]  = useState('');
+  const [activePage,   setActivePage]   = useState<'home' | 'rosters'>('home');
 
   const [showShameless,  setShowShameless]  = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; name: string; team: string } | null>(null);
@@ -607,21 +760,9 @@ export default function App() {
 
     if (pingOk) {
       try {
-        const [standData, pts, reb, ast, stl, blk] = await Promise.all([
-          fetch(`${PROXY}/standings`).then(r => r.json()),
-          ...(['PTS','REB','AST','STL','BLK'] as string[]).map(stat =>
-            fetch(`${PROXY}/leaders?stat=${stat}`).then(r => r.json())
-          ),
-        ]);
+        const standData = await fetch(`${PROXY}/standings`).then(r => r.json());
         const parsed = parseStandings(standData);
         if (parsed.length > 0) setStandings(parsed);
-        setLeaders({
-          Points:   parseLeaders(pts,  'PTS'),
-          Rebounds: parseLeaders(reb,  'REB'),
-          Assists:  parseLeaders(ast,  'AST'),
-          Steals:   parseLeaders(stl,  'STL'),
-          Blocks:   parseLeaders(blk,  'BLK'),
-        });
       } catch (e) { console.error('Data fetch error:', e); }
     }
     setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }));
@@ -708,11 +849,28 @@ export default function App() {
           <div style={{ width: 1, height: 20, background: C.border }} />
 
           {/* Nav */}
-          <nav style={{ display: 'flex', gap: 2, flex: 1 }}>
-            <span style={{
-              padding: '5px 12px', borderRadius: 6, fontSize: 13, fontWeight: 500,
-              background: C.redDim, color: C.red, border: `1px solid ${C.redBorder}`,
-            }}>Home</span>
+          <nav style={{ display: 'flex', gap: 4, flex: 1 }}>
+            {([
+              { id: 'home',    label: 'Home' },
+              { id: 'rosters', label: 'Rosters' },
+            ] as const).map(tab => {
+              const isActive = activePage === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActivePage(tab.id)}
+                  style={{
+                    padding: '5px 14px', borderRadius: 6, fontSize: 13, fontWeight: 500,
+                    background: isActive ? C.redDim : 'transparent',
+                    color: isActive ? C.red : C.textSub,
+                    border: isActive ? `1px solid ${C.redBorder}` : '1px solid transparent',
+                    cursor: 'pointer', transition: 'all 150ms ease',
+                  }}
+                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = C.text; }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = C.textSub; }}
+                >{tab.label}</button>
+              );
+            })}
           </nav>
 
           {/* Right info */}
@@ -761,9 +919,21 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Main grid ──────────────────────────────────────────────────────── */}
+      {/* ── Main ───────────────────────────────────────────────────────────── */}
       <main style={{ maxWidth: 1520, margin: '0 auto', padding: '24px 24px 60px' }}>
-        <div style={{
+
+        {/* ── Rosters Page ─────────────────────────────────────────────────── */}
+        {activePage === 'rosters' && (
+          <div style={card}>
+            <div style={sectionLabel}>Teams & Rosters — Click to explore</div>
+            <RostersPage
+              onTeamClick={(id, name, abbr) => setSelectedTeam({ teamId: id, teamName: name, teamAbbr: abbr })}
+            />
+          </div>
+        )}
+
+        {/* ── Home grid ────────────────────────────────────────────────────── */}
+        {activePage === 'home' && <div style={{
           display: 'grid',
           gridTemplateColumns: '288px 1fr 272px',
           gap: 18,
@@ -788,6 +958,27 @@ export default function App() {
                     onTeamClick={(id, name, abbr) => setSelectedTeam({ teamId: id, teamName: name, teamAbbr: abbr })} />
                 </div>
               )}
+
+              {/* Playoff bracket link */}
+              <a
+                href="https://www.nba.com/playoffs"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: 6, marginTop: 16, padding: '9px 12px', borderRadius: 8,
+                  background: C.redDim, border: `1px solid ${C.redBorder}`,
+                  textDecoration: 'none', transition: 'all 150ms ease',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(200,16,46,0.16)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = C.redDim; }}
+              >
+                <span style={{ fontSize: 13 }}>🏆</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.red, letterSpacing: '0.05em' }}>
+                  View 2026 Playoff Bracket
+                </span>
+                <span style={{ fontSize: 11, color: C.redBorder }}>↗</span>
+              </a>
             </div>
 
             {/* Games */}
@@ -809,15 +1000,13 @@ export default function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={card}>
               <div style={sectionLabel}>League Leaders · Top 15</div>
-              {loading ? <Spinner /> : (
-                <LeagueLeadersPanel
-                  leaders={leaders}
-                  onPlayerClick={(id, name, team) => {
-                    setCameFromTeam(false);
-                    setSelectedPlayer({ id, name, team });
-                  }}
-                />
-              )}
+              <LeagueLeadersPanel
+                proxyOnline={proxyOnline}
+                onPlayerClick={(id, name, team) => {
+                  setCameFromTeam(false);
+                  setSelectedPlayer({ id, name, team });
+                }}
+              />
             </div>
             <div style={card}>
               <div style={sectionLabel}>Championship & Conference Odds</div>
@@ -863,7 +1052,7 @@ export default function App() {
             </div>
           </div>
 
-        </div>
+        </div>}
 
         {/* ── Methodology strip ───────────────────────────────────────────── */}
         <div style={{

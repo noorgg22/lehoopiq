@@ -6,6 +6,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
   const stat = req.query.stat || 'PTS';
+  const seasonType = req.query.seasonType || 'Regular Season';
   const season = '2025-26';
 
   const NBA_HEADERS = {
@@ -25,7 +26,7 @@ export default async function handler(req, res) {
       PerMode: 'PerGame',
       Scope: 'S',
       Season: season,
-      SeasonType: 'Regular Season',
+      SeasonType: seasonType,
       StatCategory: stat,
     });
 
