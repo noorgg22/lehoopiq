@@ -666,18 +666,20 @@ export default function PlayerProfile({ playerId, playerName, team, onBack }: Pl
     async function load() {
       setLoading(true);
       try {
+        // Fetch pool data once — all-players endpoint handles all stat types
+        const poolPromise = fetch(`${PROXY}/all-players`).then(r => r.json());
         const [infoRes, careerRes, tradRes, advRes, hustleRes, drivesRes, catchRes, pullupRes, rebRes, passRes, defRes, splitsRes, awardsRes] = await Promise.allSettled([
           fetch(`${PROXY}/player-info/${playerId}`).then(r => r.json()),
           fetch(`${PROXY}/player-career/${playerId}`).then(r => r.json()),
-          fetch(`${PROXY}/all-players-traditional`).then(r => r.json()),
-          fetch(`${PROXY}/all-players-advanced`).then(r => r.json()),
-          fetch(`${PROXY}/all-players-hustle`).then(r => r.json()),
-          fetch(`${PROXY}/all-players-tracking?type=Drives`).then(r => r.json()),
-          fetch(`${PROXY}/all-players-catchshoot`).then(r => r.json()),
-          fetch(`${PROXY}/all-players-pullup`).then(r => r.json()),
-          fetch(`${PROXY}/all-players-rebounding`).then(r => r.json()),
-          fetch(`${PROXY}/all-players-passing`).then(r => r.json()),
-          fetch(`${PROXY}/all-players-defense`).then(r => r.json()),
+          poolPromise, // traditional
+          poolPromise, // advanced
+          poolPromise, // hustle
+          poolPromise, // drives/tracking
+          poolPromise, // catchshoot
+          poolPromise, // pullup
+          poolPromise, // rebounding
+          poolPromise, // passing
+          poolPromise, // defense
           fetch(`${PROXY}/player-splits/${playerId}`).then(r => r.json()),
           fetch(`${PROXY}/player-awards/${playerId}`).then(r => r.json()),
         ]);
