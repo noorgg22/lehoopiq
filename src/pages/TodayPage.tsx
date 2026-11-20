@@ -11,36 +11,36 @@ const ESPN = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 
 // ── Design tokens (mirrored from CSS vars for inline styles) ─────────
 const C = {
-  canvas:       '#0d0e10',
-  surface:      '#141519',
-  surfaceRaised:'#1c1d22',
-  surfaceHover: '#22232a',
-  border:       '#26272e',
-  borderStrong: 'rgba(255,255,255,0.10)',
-  text:         '#f0f0f2',
-  textSub:      '#9a9ba6',
-  textMuted:    '#5a5b66',
-  red:          '#c8102e',
-  redDim:       'rgba(200,16,46,0.10)',
-  redBorder:    'rgba(200,16,46,0.28)',
-  live:         '#22c55e',
-  liveDim:      'rgba(34,197,94,0.12)',
-  amber:        '#f59e0b',
-  amberDim:     'rgba(245,158,11,0.10)',
-  sky:          '#38bdf8',
-  violet:       '#a78bfa',
-  rose:         '#fb7185',
-  emerald:      '#34d399',
-  green:        '#4ade80',
-  mono:         "'Geist Mono','SF Mono',ui-monospace,Menlo,monospace",
+  canvas:       'var(--ink)',
+  surface:      'var(--court)',
+  surfaceRaised:'var(--court)',
+  surfaceHover: 'var(--ink)',
+  border:       'var(--line)',
+  borderStrong: 'var(--line)',
+  text:         'var(--chalk)',
+  textSub:      'var(--chalk-2)',
+  textMuted:    'var(--chalk-2)',
+  red:          'var(--heat)',
+  redDim:       'rgba(229,50,45,0.10)',
+  redBorder:    'rgba(229,50,45,0.28)',
+  live:         'var(--heat)',
+  liveDim:      'rgba(229,50,45,0.12)',
+  amber:        'var(--gold)',
+  amberDim:     'rgba(242,179,61,0.10)',
+  sky:          'var(--cool)',
+  violet:       'var(--cool)',
+  rose:         'var(--heat)',
+  emerald:      'var(--cool)',
+  green:        'var(--cool)',
+  mono:         "var(--font-body)",
 };
 
 const ACCENT: Record<string, { color: string; dimBg: string }> = {
   Points:   { color: C.red,     dimBg: C.redDim },
-  Rebounds: { color: C.sky,     dimBg: 'rgba(56,189,248,0.10)' },
-  Assists:  { color: C.emerald, dimBg: 'rgba(52,211,153,0.10)' },
-  Steals:   { color: C.violet,  dimBg: 'rgba(167,139,250,0.10)' },
-  Blocks:   { color: C.rose,    dimBg: 'rgba(251,113,133,0.10)' },
+  Rebounds: { color: C.sky,     dimBg: 'rgba(77,163,255,0.10)' },
+  Assists:  { color: C.emerald, dimBg: 'rgba(77,163,255,0.10)' },
+  Steals:   { color: C.violet,  dimBg: 'rgba(77,163,255,0.10)' },
+  Blocks:   { color: C.rose,    dimBg: 'rgba(229,50,45,0.10)' },
 };
 
 const CATEGORIES = ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks'];
@@ -190,7 +190,7 @@ function ScoreCard({ game }: { game: Game }) {
   return (
     <div style={{
       background: C.surfaceRaised,
-      border: `1px solid ${isLive ? 'rgba(34,197,94,0.25)' : C.border}`,
+      border: `1px solid ${isLive ? C.redBorder : C.border}`,
       borderRadius: 8, padding: '12px 14px',
       transition: 'border-color 200ms ease',
     }}>
@@ -392,8 +392,8 @@ export default function TodayPage() {
       {/* Proxy banner */}
       {!proxyOnline && !loading && (
         <div style={{
-          background: 'rgba(245,158,11,0.06)',
-          borderBottom: '1px solid rgba(245,158,11,0.18)',
+          background: C.amberDim,
+          borderBottom: `1px solid ${C.border}`,
           padding: '9px 24px', textAlign: 'center',
           fontSize: 12, color: C.amber, marginBottom: 16, borderRadius: 8,
         }}>
@@ -483,18 +483,12 @@ export default function TodayPage() {
         </div>
       </div>
 
-      {/* Methodology strip */}
+      {/* Data sources strip */}
       <div style={{
         marginTop: 24, background: C.surface, border: `1px solid ${C.border}`,
         borderRadius: 12, padding: '20px 28px',
         display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'center',
       }}>
-        <div style={{ flexShrink: 0 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 4 }}>Analytics Stack</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>LeHoopIQ</div>
-          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>Basketball Intelligence Platform</div>
-        </div>
-        <div style={{ width: 1, height: 40, background: C.border, flexShrink: 0 }} />
         {[
           { label: 'Data Sources', value: 'NBA Stats API \u00B7 ESPN API \u00B7 nbaapi.com' },
           { label: 'Models', value: 'Bayesian inference \u00B7 Implied probability \u00B7 Efficiency ratings' },
@@ -512,7 +506,7 @@ export default function TodayPage() {
       <div style={{ textAlign: 'center', marginTop: 36, paddingBottom: 8 }}>
         <Link to="/shameless-meter" style={{
           display: 'inline-block',
-          background: 'rgba(200,16,46,0.08)', border: '1px solid rgba(200,16,46,0.25)',
+          background: C.redDim, border: `1px solid ${C.redBorder}`,
           borderRadius: 8, padding: '12px 28px', cursor: 'pointer',
           color: C.red, fontSize: 13, fontWeight: 600, letterSpacing: '0.04em',
           textDecoration: 'none', transition: 'all 150ms ease',

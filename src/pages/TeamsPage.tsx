@@ -2,14 +2,14 @@ import { useNavigate } from 'react-router-dom';
 import { NBA_TEAM_LIST } from '../teams';
 
 const C = {
-  surfaceRaised: '#1c1d22',
-  surfaceHover:  '#22232a',
-  border:        '#26272e',
-  text:          '#f0f0f2',
-  textMuted:     '#5a5b66',
-  emerald:       '#34d399',
-  sky:           '#38bdf8',
-  mono:          "'Geist Mono','SF Mono',ui-monospace,Menlo,monospace",
+  surfaceRaised: 'var(--court)',
+  surfaceHover:  'var(--ink)',
+  border:        'var(--line)',
+  text:          'var(--chalk)',
+  textMuted:     'var(--chalk-2)',
+  emerald:       'var(--cool)',
+  sky:           'var(--cool)',
+  mono:          'var(--font-body)',
 };
 
 const confs = [

@@ -2,19 +2,19 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const C = {
-  bg: '#09090b', surface: '#18181b', surfaceHi: '#27272a',
-  border: '#27272a', text: '#fafafa', textSub: '#a1a1aa', textMuted: '#52525b',
-  orange: '#f97316', orangeDim: 'rgba(249,115,22,0.12)',
-  emerald: '#34d399', amber: '#fbbf24', sky: '#38bdf8',
-  violet: '#a78bfa', rose: '#fb7185', green: '#4ade80',
-  red: '#ef4444', yellow: '#eab308',
+  bg: 'var(--ink)', surface: 'var(--court)', surfaceHi: 'var(--court)',
+  border: 'var(--line)', text: 'var(--chalk)', textSub: 'var(--chalk-2)', textMuted: 'var(--chalk-2)',
+  orange: 'var(--heat)', orangeDim: 'rgba(229,50,45,0.12)',
+  emerald: 'var(--gold)', amber: 'var(--gold)', sky: 'var(--cool)',
+  violet: 'var(--cool)', rose: 'var(--heat)', green: 'var(--gold)',
+  red: 'var(--heat)', yellow: 'var(--gold)',
 };
 
 const TIERS = [
-  { id: 'tier1', label: 'Certified Shameless', emoji: '🔴', color: '#ef4444', description: 'No remorse. No conscience. Just buckets... at the free throw line.' },
-  { id: 'tier2', label: 'Habitual Offenders', emoji: '🟠', color: '#f97316', description: 'They know what they\'re doing. The refs know. Everyone knows.' },
-  { id: 'tier3', label: 'Suspicious Activity', emoji: '🟡', color: '#eab308', description: 'Plausible deniability. But we see you.' },
-  { id: 'tier4', label: 'Sneaky Foul Baiters', emoji: '⚪', color: '#a1a1aa', description: 'Occasional offenders. Still not innocent.' },
+  { id: 'tier1', label: 'Certified Shameless', emoji: '', color: 'var(--heat)', description: 'No remorse. No conscience. Just buckets... at the free throw line.' },
+  { id: 'tier2', label: 'Habitual Offenders', emoji: '', color: 'var(--gold)', description: 'They know what they\'re doing. The refs know. Everyone knows.' },
+  { id: 'tier3', label: 'Suspicious Activity', emoji: '', color: 'var(--gold)', description: 'Plausible deniability. But we see you.' },
+  { id: 'tier4', label: 'Sneaky Foul Baiters', emoji: '', color: 'var(--chalk-2)', description: 'Occasional offenders. Still not innocent.' },
 ];
 
 const OFFENSIVE: {
