@@ -49,8 +49,9 @@ export default async function handler(req, res) {
   const field = STAT_FIELD[stat] || 'points';
 
   try {
+    const seasonYear = (() => { const now = new Date(); const y = now.getFullYear(); return now.getMonth() >= 9 ? y + 1 : y; })();
     const r = await fetch(
-      `https://api.server.nbaapi.com/api/playertotals?season=2026&sortBy=${field}&ascending=false&page=1&pageSize=25`,
+      `https://api.server.nbaapi.com/api/playertotals?season=${seasonYear}&sortBy=${field}&ascending=false&page=1&pageSize=25`,
       { signal: AbortSignal.timeout(12000) }
     );
     if (!r.ok) throw new Error(`nbaapi ${r.status}`);

@@ -29,7 +29,8 @@ async function cached(key, ttl, fn) {
 }
 
 // ── NBA.com config ────────────────────────────────────────────────────────────
-const SEASON = '2025-26';
+const { getCurrentSeasonLabel, getCurrentSeasonYear } = require('./src/seasonHelper.cjs');
+const SEASON = getCurrentSeasonLabel();
 const NBA_HEADERS = {
   'Host': 'stats.nba.com',
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
@@ -153,10 +154,10 @@ function buildMergedPool(totals, advanced) {
 async function getPool() {
   return cached('pool_merged', TTL.league, async () => {
     console.log('[pool] Fetching totals from nbaapi.com...');
-    const totals = await fetchAllPages('playertotals?season=2026&sortBy=points&ascending=false');
+    const totals = await fetchAllPages(`playertotals?season=${getCurrentSeasonYear()}&sortBy=points&ascending=false`);
     console.log(`[pool] Got ${totals.length} totals rows`);
     console.log('[pool] Fetching advanced from nbaapi.com...');
-    const advanced = await fetchAllPages('playeradvancedstats?season=2026&sortBy=win_shares&ascending=false');
+    const advanced = await fetchAllPages(`playeradvancedstats?season=${getCurrentSeasonYear()}&sortBy=win_shares&ascending=false`);
     console.log(`[pool] Got ${advanced.length} advanced rows`);
     const merged = buildMergedPool(totals, advanced);
     console.log(`[pool] Merged ${merged.length} players`);

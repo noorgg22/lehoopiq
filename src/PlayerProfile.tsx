@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getCurrentSeasonLabel } from './season';
 
 const PROXY = import.meta.env.VITE_PROXY_URL ||
   (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
@@ -842,7 +843,7 @@ export default function PlayerProfile({ playerId, playerName, team, onBack }: Pl
           {activeTab === 'overview' && (
             <div style={{ display: 'grid', gridTemplateColumns: '500px 1fr', gap: 24 }}>
               <div style={{ background: C.surface, borderRadius: 20, padding: 24, border: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.textMuted, marginBottom: 16 }}>Player Attributes · 2025–26 Season</div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.textMuted, marginBottom: 16 }}>Player Attributes · {getCurrentSeasonLabel()} Season</div>
                 <AttributeDiagram scores={scores} playerName={playerName} playerImg={playerImg} playerStats={currentStats || {}} />
                 <p style={{ fontSize: 10, color: C.textMuted, textAlign: 'center', marginTop: 8 }}>Hover over each segment to see individual stats · Based on percentile vs all qualified players (750+ min)</p>
               </div>
@@ -853,7 +854,7 @@ export default function PlayerProfile({ playerId, playerName, team, onBack }: Pl
                 </div>
                 {displayStats && (
                   <div style={{ background: C.surface, borderRadius: 20, padding: 24, border: `1px solid ${C.border}` }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.textMuted, marginBottom: 16 }}>Advanced Stats · 2025–26 <span style={{ fontSize: 9, fontWeight: 400 }}>· Hover ⓘ for explanations</span></div>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.textMuted, marginBottom: 16 }}>Advanced Stats · {getCurrentSeasonLabel()} <span style={{ fontSize: 9, fontWeight: 400 }}>· Hover ⓘ for explanations</span></div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                       {[
                         { label: 'Off Rating', value: fmt1(displayStats.OFF_RATING) },

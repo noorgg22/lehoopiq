@@ -17,10 +17,18 @@ async function fetchAllPages(path) {
   return allData;
 }
 
+function getCurrentSeasonYear() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  return month >= 9 ? year + 1 : year;
+}
+
 export async function getPool() {
+  const seasonYear = getCurrentSeasonYear();
   const [totals, advanced] = await Promise.all([
-    fetchAllPages('playertotals?season=2026&sortBy=points&ascending=false'),
-    fetchAllPages('playeradvancedstats?season=2026&sortBy=win_shares&ascending=false'),
+    fetchAllPages(`playertotals?season=${seasonYear}&sortBy=points&ascending=false`),
+    fetchAllPages(`playeradvancedstats?season=${seasonYear}&sortBy=win_shares&ascending=false`),
   ]);
 
   const advMap = {};

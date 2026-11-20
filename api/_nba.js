@@ -1,6 +1,13 @@
 // Shared NBA API helper — not exposed as an endpoint (underscore prefix)
 
-export const SEASON = '2025-26';
+function getCurrentSeasonLabel() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const endYear = month >= 9 ? year + 1 : year;
+  return `${endYear - 1}-${String(endYear).slice(2)}`;
+}
+export const SEASON = getCurrentSeasonLabel();
 
 export const NBA_HEADERS = {
   'Host': 'stats.nba.com',

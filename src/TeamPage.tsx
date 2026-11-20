@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getCurrentSeasonLabel } from './season';
 
 const PROXY = import.meta.env.VITE_PROXY_URL ||
   (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
@@ -761,7 +762,7 @@ export default function TeamPage({ teamId, teamName, teamAbbr, onBack, onPlayerC
           {activeTab === 'roster' && (
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.textMuted, marginBottom: 16 }}>
-                2025-26 Roster · Click a player to view profile
+                {getCurrentSeasonLabel()} Roster · Click a player to view profile
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                 {roster.map((player, i) => {
@@ -900,8 +901,7 @@ export default function TeamPage({ teamId, teamName, teamAbbr, onBack, onPlayerC
           {/* FRANCHISE TAB — No data */}
           {activeTab === 'franchise' && !teamData && (
             <div style={{ background: C.surface, borderRadius: 20, padding: 40, textAlign: 'center', color: C.textMuted }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🏗️</div>
-              <p>Franchise history coming soon for this team.</p>
+              <p>No franchise history available for this team.</p>
             </div>
           )}
 
@@ -951,8 +951,7 @@ export default function TeamPage({ teamId, teamName, teamAbbr, onBack, onPlayerC
                 </div>
               ) : (
                 <div style={{ background: C.surface, borderRadius: 20, padding: 40, textAlign: 'center', color: C.textMuted }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>⭐</div>
-                  <p>Franchise legends coming soon for this team.</p>
+                  <p>No franchise legends data available for this team.</p>
                 </div>
               )}
             </div>

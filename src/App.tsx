@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import PlayerProfile from './PlayerProfile';
 import ShamelessMeter from './ShamelessMeter';
 import TeamPage from './TeamPage';
+import { getCurrentSeasonYear, getCurrentSeasonLabel } from './season';
 
 const PROXY = import.meta.env.VITE_PROXY_URL ||
   (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
@@ -50,22 +51,6 @@ const ODDS_ACCENT: Record<string, { color: string; dimBg: string }> = {
 };
 
 const CATEGORIES = ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks'];
-const ODDS_TABS  = ['Championship', 'Eastern Conf', 'Western Conf'];
-
-// NBA Finals: San Antonio Spurs vs New York Knicks — updated June 2, 2026
-const ODDS_UPDATED = 'June 2, 2026';
-const ODDS: Record<string, { team: string; odds: string; abbr: string }[]> = {
-  'Championship': [
-    { team: 'San Antonio Spurs',      odds: '-145',  abbr: 'sa'  },
-    { team: 'New York Knicks',        odds: '+120',  abbr: 'ny'  },
-  ],
-  'Eastern Conf': [
-    { team: 'New York Knicks',        odds: '-10000', abbr: 'ny'  },
-  ],
-  'Western Conf': [
-    { team: 'San Antonio Spurs',      odds: '-10000', abbr: 'sa'  },
-  ],
-};
 
 const NBA_TEAM_LIST = [
   { id: '1610612737', name: 'Atlanta Hawks',         abbr: 'ATL', espn: 'atl'  },
@@ -392,7 +377,7 @@ function LeagueLeadersPanel({ proxyOnline, onPlayerClick }: {
         <Spinner />
       ) : !proxyOnline ? (
         <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '24px 0' }}>
-          Connect to the proxy to load live stats
+          Stats are updating.
         </p>
       ) : list.length === 0 ? (
         <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '24px 0' }}>
@@ -469,119 +454,7 @@ function LeagueLeadersPanel({ proxyOnline, onPlayerClick }: {
   );
 }
 
-// ── Betting Odds ──────────────────────────────────────────────────────────────
-// Convert American odds to implied probability
-function impliedProb(odds: string): string {
-  const n = parseInt(odds);
-  if (isNaN(n)) return '—';
-  const prob = n < 0 ? (-n / (-n + 100)) : (100 / (n + 100));
-  return `${(prob * 100).toFixed(1)}%`;
-}
-
-function BettingOddsPanel() {
-  const isFav = (odds: string) => odds.startsWith('-') || parseInt(odds.replace('+', '')) <= 300;
-
-  // Finals matchup: Spurs vs Knicks
-  const spursOdds = '-145';
-  const knicksOdds = '+120';
-  const spursProb = parseFloat(impliedProb(spursOdds));
-  const knicksProb = parseFloat(impliedProb(knicksOdds));
-
-  return (
-    <div>
-      {/* NBA Finals Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(200,16,46,0.08), rgba(29,66,138,0.08))',
-        border: `1px solid rgba(200,16,46,0.2)`,
-        borderRadius: 10, padding: '14px 16px', marginBottom: 16,
-      }}>
-        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', color: C.red, textTransform: 'uppercase', marginBottom: 10 }}>
-          🏆 2026 NBA Finals
-        </div>
-
-        {/* Matchup */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          {/* Spurs */}
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <img src="https://a.espncdn.com/i/teamlogos/nba/500/sa.png" alt="Spurs"
-              style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 4 }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            <div style={{ fontSize: 11, fontWeight: 600, color: C.text }}>San Antonio</div>
-            <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.05em' }}>SPURS</div>
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.textMuted }}>vs</div>
-          {/* Knicks */}
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <img src="https://a.espncdn.com/i/teamlogos/nba/500/ny.png" alt="Knicks"
-              style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 4 }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            <div style={{ fontSize: 11, fontWeight: 600, color: C.text }}>New York</div>
-            <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.05em' }}>KNICKS</div>
-          </div>
-        </div>
-
-        {/* Win probability bar */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: C.mono, color: C.green }}>
-              {impliedProb(spursOdds)}
-            </span>
-            <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', alignSelf: 'center' }}>
-              Implied Win Prob
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: C.mono, color: C.sky }}>
-              {impliedProb(knicksOdds)}
-            </span>
-          </div>
-          <div style={{ height: 6, borderRadius: 99, background: C.surfaceRaised, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              width: `${(spursProb / (spursProb + knicksProb)) * 100}%`,
-              background: `linear-gradient(90deg, ${C.green}, ${C.emerald})`,
-              borderRadius: 99,
-            }} />
-          </div>
-        </div>
-
-        {/* Odds row */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{
-            flex: 1, textAlign: 'center', padding: '6px 0',
-            background: 'rgba(74,222,128,0.08)', borderRadius: 6,
-            border: '1px solid rgba(74,222,128,0.2)',
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: C.mono, color: C.green }}>{spursOdds}</div>
-            <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.08em' }}>SPURS · FAV</div>
-          </div>
-          <div style={{
-            flex: 1, textAlign: 'center', padding: '6px 0',
-            background: 'rgba(56,189,248,0.08)', borderRadius: 6,
-            border: '1px solid rgba(56,189,248,0.2)',
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: C.mono, color: C.sky }}>{knicksOdds}</div>
-            <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.08em' }}>KNICKS · DOG</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Vig / overround note */}
-      <div style={{
-        padding: '8px 10px', background: C.surfaceRaised,
-        borderRadius: 6, marginBottom: 4,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      }}>
-        <span style={{ fontSize: 10, color: C.textMuted }}>Market overround (vig)</span>
-        <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 600, color: C.amber }}>
-          {((spursProb + knicksProb) - 100).toFixed(1)}%
-        </span>
-      </div>
-
-      <p style={{ fontSize: 9, color: C.textMuted, textAlign: 'center', marginTop: 12, letterSpacing: '0.05em' }}>
-        ODDS VIA DRAFTKINGS · UPDATED {ODDS_UPDATED.toUpperCase()}
-      </p>
-    </div>
-  );
-}
+// ── Betting Odds (removed — was hard-coded for 2026 Finals) ─────────────────
 
 // ── Rosters Page ─────────────────────────────────────────────────────────────
 function RostersPage({ onTeamClick }: {
@@ -786,7 +659,7 @@ export default function App() {
     // Fetch standings directly from ESPN — no proxy needed, CORS-accessible
     try {
       const espnStandRes = await fetch(
-        'https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?season=2026',
+        `https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?season=${getCurrentSeasonYear()}`,
         { signal: AbortSignal.timeout(8000) }
       );
       if (espnStandRes.ok) {
@@ -949,12 +822,7 @@ export default function App() {
           padding: '9px 24px', textAlign: 'center',
           fontSize: 12, color: C.amber,
         }}>
-          Run{' '}
-          <code style={{
-            background: 'rgba(0,0,0,0.35)', padding: '2px 7px',
-            borderRadius: 4, fontFamily: C.mono, fontSize: 11,
-          }}>npm run dev</code>
-          {' '}in a second terminal to load live NBA stats
+          Stats are updating.
         </div>
       )}
 
@@ -984,10 +852,10 @@ export default function App() {
 
             {/* Standings */}
             <div style={card}>
-              <div style={sectionLabel}>Standings · 2025–26</div>
+              <div style={sectionLabel}>Standings · {getCurrentSeasonLabel()}</div>
               {loading ? <Spinner /> : standings.length === 0 ? (
                 <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '20px 0' }}>
-                  Run <code style={{ fontFamily: C.mono }}>npm run dev</code> to load standings
+                  Stats are updating.
                 </p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -1014,7 +882,7 @@ export default function App() {
               >
                 <span style={{ fontSize: 13 }}>🏆</span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: C.red, letterSpacing: '0.05em' }}>
-                  View 2026 Playoff Bracket
+                  View Playoff Bracket
                 </span>
                 <span style={{ fontSize: 11, color: C.redBorder }}>↗</span>
               </a>
@@ -1046,10 +914,6 @@ export default function App() {
                   setSelectedPlayer({ id, name, team });
                 }}
               />
-            </div>
-            <div style={card}>
-              <div style={sectionLabel}>Championship & Conference Odds</div>
-              <BettingOddsPanel />
             </div>
           </div>
 

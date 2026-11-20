@@ -46,7 +46,7 @@ export default async function handler(req, res) {
       'NUM','POSITION','HEIGHT','WEIGHT','BIRTH_DATE','AGE','EXP','SCHOOL','PLAYER_ID','HOW_ACQUIRED',
     ];
     const rowSet = athletes.map(a => [
-      teamId, '2025-26', '00',
+      teamId, (() => { const now = new Date(); const y = now.getFullYear(); const e = now.getMonth() >= 9 ? y + 1 : y; return `${e - 1}-${String(e).slice(2)}`; })(), '00',
       a.displayName || '',
       '',
       (a.displayName || '').toLowerCase().replace(/\s+/g, '-'),

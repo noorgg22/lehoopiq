@@ -175,8 +175,7 @@ function VideoModal({ player, onClose }: {
             background: C.surfaceHi, border: `2px dashed ${C.border}`,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
           }}>
-            <span style={{ fontSize: 48 }}>🎬</span>
-            <span style={{ fontSize: 14, color: C.textMuted }}>Video coming soon...</span>
+            <span style={{ fontSize: 14, color: C.textMuted, fontStyle: 'italic' }}>"{player.signature}"</span>
             <span style={{ fontSize: 12, color: C.textMuted, fontStyle: 'italic' }}>"{player.signature}"</span>
           </div>
         )}
