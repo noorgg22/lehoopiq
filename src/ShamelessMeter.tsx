@@ -238,12 +238,12 @@ export default function ShamelessMeter() {
         <div style={{ display: 'flex', gap: 4, marginBottom: 32, padding: 4, background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, width: 'fit-content', margin: '0 auto 32px' }}>
           <button onClick={() => setActiveTab('offensive')} style={{
             padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
-            background: activeTab === 'offensive' ? '#ef4444' : 'transparent',
+            background: activeTab === 'offensive' ? 'var(--heat)' : 'transparent',
             color: activeTab === 'offensive' ? '#fff' : C.textMuted,
           }}>🏀 Offensive Foul Baiters</button>
           <button onClick={() => setActiveTab('defensive')} style={{
             padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
-            background: activeTab === 'defensive' ? '#ef4444' : 'transparent',
+            background: activeTab === 'defensive' ? 'var(--heat)' : 'transparent',
             color: activeTab === 'defensive' ? '#fff' : C.textMuted,
           }}>🎭 Defensive Floppers</button>
         </div>

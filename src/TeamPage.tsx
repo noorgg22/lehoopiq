@@ -9,9 +9,9 @@ const PROXY = import.meta.env.VITE_PROXY_URL ||
     : 'http://localhost:3001/api');
 
 const C = {
-  bg: '#09090b', surface: '#18181b', surfaceHi: '#27272a',
-  border: '#27272a', text: '#fafafa', textSub: '#a1a1aa', textMuted: '#52525b',
-  orange: '#f97316', amber: '#fbbf24', sky: '#38bdf8', emerald: '#34d399',
+  bg: 'var(--ink)', surface: 'var(--court)', surfaceHi: 'var(--court)',
+  border: 'var(--line)', text: 'var(--chalk)', textSub: 'var(--chalk-2)', textMuted: 'var(--chalk-2)',
+  orange: 'var(--heat)', amber: 'var(--gold)', sky: 'var(--cool)', emerald: 'var(--gold)',
 };
 
 // ── Team colors & info ────────────────────────────────────────────────────────
