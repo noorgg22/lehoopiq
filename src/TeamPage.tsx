@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getCurrentSeasonLabel } from './season';
+import { teamByAbbr } from './teams';
 
 const PROXY = import.meta.env.VITE_PROXY_URL ||
   (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
@@ -628,15 +630,19 @@ function parseResultSet(data: any, setName?: string) {
   return { headers, rows };
 }
 
-interface TeamPageProps {
-  teamId: string;
-  teamName: string;
-  teamAbbr: string;
-  onBack: () => void;
-  onPlayerClick: (playerId: string, playerName: string, team: string) => void;
-}
+export default function TeamPage() {
+  const { abbr: abbrParam } = useParams<{ abbr: string }>();
+  const navigate = useNavigate();
 
-export default function TeamPage({ teamId, teamName, teamAbbr, onBack, onPlayerClick }: TeamPageProps) {
+  const teamEntry = teamByAbbr(abbrParam || '');
+  const teamId   = teamEntry?.id   || '';
+  const teamName = teamEntry?.name || abbrParam?.toUpperCase() || '';
+  const teamAbbr = teamEntry?.abbr || abbrParam?.toUpperCase() || '';
+
+  const onBack = () => navigate(-1);
+  const onPlayerClick = (playerId: string, _playerName: string, _team: string) => {
+    navigate(`/players/${playerId}`);
+  };
   const [roster, setRoster] = useState<any[]>([]);
   const [teamInfo, setTeamInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);

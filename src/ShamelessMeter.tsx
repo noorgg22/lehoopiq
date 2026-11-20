@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const C = {
   bg: '#09090b', surface: '#18181b', surfaceHi: '#27272a',
@@ -190,11 +191,9 @@ function VideoModal({ player, onClose }: {
   );
 }
 
-interface ShamelessMeterProps {
-  onBack: () => void;
-}
-
-export default function ShamelessMeter({ onBack }: ShamelessMeterProps) {
+export default function ShamelessMeter() {
+  const navigate = useNavigate();
+  const onBack = () => navigate(-1);
   const [activeTab, setActiveTab] = useState<'offensive' | 'defensive'>('offensive');
   const [selectedPlayer, setSelectedPlayer] = useState<typeof OFFENSIVE[0] | null>(null);
 

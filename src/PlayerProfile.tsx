@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getCurrentSeasonLabel } from './season';
 
 const PROXY = import.meta.env.VITE_PROXY_URL ||
@@ -645,12 +646,17 @@ function AccoladesTab({ playerId, awards, stretches }: {
   );
 }
 
-interface PlayerProfileProps {
-  playerId: string; playerName: string; team: string; onBack: () => void;
-}
+export default function PlayerProfile() {
+  const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
 
-export default function PlayerProfile({ playerId, playerName, team, onBack }: PlayerProfileProps) {
+  const playerId = slug || '';
+  const onBack = () => navigate(-1);
   const [bio, setBio] = useState<any>(null);
+
+  // Derive display name and team from bio once loaded
+  const playerName = bio?.DISPLAY_FIRST_LAST || bio?.PLAYER_NAME || '';
+  const team = bio?.TEAM_NAME || bio?.TEAM_CITY ? `${bio.TEAM_CITY || ''} ${bio.TEAM_NAME || ''}`.trim() : '';
   const [career, setCareer] = useState<any[]>([]);
   const [currentStats, setCurrentStats] = useState<any>(null);
   const [splitsStats, setSplitsStats] = useState<any>(null);
