@@ -1,0 +1,53 @@
+/* ── LeHoopIQ Design Tokens ──────────────────────────────────────────
+   Every color, radius and spacing value lives here.
+   No hex values anywhere else in the codebase.
+   ──────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Surfaces */
+  --ink:      #0E0F12;
+  --court:    #16181D;
+  --line:     #2A2D35;
+
+  /* Text */
+  --chalk:    #F2EFE8;
+  --chalk-2:  #A7A39A;
+
+  /* Accent */
+  --heat:     #E5322D;
+  --gold:     #F2B33D;
+  --cool:     #4DA3FF;
+
+  /* Spacing scale (8px base) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 10px;
+
+  /* Type scale */
+  --t-xs: 12px;
+  --t-sm: 14px;
+  --t-base: 16px;
+  --t-lg: 20px;
+  --t-xl: 28px;
+  --t-2xl: 40px;
+  --t-3xl: 64px;
+  --t-4xl: 96px;
+
+  /* Layout */
+  --max-w: 1200px;
+
+  /* Fonts */
+  --font-display: 'Oswald', sans-serif;
+  --font-body: 'Inter Tight', sans-serif;
+}
