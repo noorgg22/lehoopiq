@@ -213,6 +213,9 @@ export default function LeadersPage() {
                   flexShrink: 0,
                 }}>
                   <img
+                    loading="lazy"
+                    width={40}
+                    height={40}
                     src={`https://cdn.nba.com/headshots/nba/latest/260x190/${p.playerId}.png`}
                     alt={p.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
