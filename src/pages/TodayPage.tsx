@@ -2,11 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getCurrentSeasonYear, getCurrentSeasonLabel } from '../season';
 import { TEAM_IDS } from '../teams';
+import { fetchStandings, type StandingsRow } from '../parseStandings';
 
-const PROXY = import.meta.env.VITE_PROXY_URL ||
-  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? '/api'
-    : 'http://localhost:3001/api');
 const ESPN = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 
 // ── Design tokens (mirrored from CSS vars for inline styles) ─────────
@@ -44,12 +41,16 @@ const ACCENT: Record<string, { color: string; dimBg: string }> = {
 };
 
 const CATEGORIES = ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks'];
-const STAT_MAP: Record<string, string> = {
-  Points: 'PTS', Rebounds: 'REB', Assists: 'AST', Steals: 'STL', Blocks: 'BLK',
+
+const ESPN_CATEGORY_MAP: Record<string, string> = {
+  pointsPerGame: 'Points',
+  reboundsPerGame: 'Rebounds',
+  assistsPerGame: 'Assists',
+  stealsPerGame: 'Steals',
+  blocksPerGame: 'Blocks',
 };
 
-interface Leader  { name: string; team: string; value: string; playerId: string; }
-interface Standing { rank: number; team: string; teamId: string; wins: number; losses: number; pct: string; conf: string; logo: string; abbr: string; }
+interface Leader  { name: string; team: string; value: string; playerId: string; headshot: string; }
 interface Game    { id: string; home: { name: string; logo: string }; away: { name: string; logo: string }; homeScore: number; awayScore: number; status: string; period: number; clock: string; }
 
 const card: React.CSSProperties = {
@@ -81,60 +82,10 @@ function Spinner() {
   );
 }
 
-const ESPN_LOGO_ABBR: Record<string, string> = {
-  'GSW': 'gs', 'NYK': 'ny', 'NOP': 'no', 'SAS': 'sa', 'UTA': 'utah', 'WAS': 'wsh',
-};
-
-function parseStandingsFromESPN(espn: any): Standing[] {
-  const children = espn?.children || [];
-  const rows: Standing[] = [];
-  for (const conf of children) {
-    const confName = conf.name?.includes('East') ? 'East' : 'West';
-    const entries = conf?.standings?.entries || [];
-    entries.forEach((entry: any, idx: number) => {
-      const team   = entry.team;
-      const abbr   = team?.abbreviation || '';
-      const espnAbbr = ESPN_LOGO_ABBR[abbr] || abbr.toLowerCase();
-      const stats: Record<string, number> = {};
-      (entry.stats || []).forEach((s: any) => { stats[s.name] = s.value; });
-      const wins   = stats.wins   || 0;
-      const losses = stats.losses || 0;
-      rows.push({
-        rank:   idx + 1,
-        team:   team?.displayName || '',
-        teamId: team?.id || '',
-        wins,
-        losses,
-        pct:    (wins / Math.max(wins + losses, 1)).toFixed(3).replace('0.', '.'),
-        conf:   confName,
-        logo:   `https://a.espncdn.com/i/teamlogos/nba/500/${espnAbbr}.png`,
-        abbr,
-      });
-    });
-  }
-  return rows;
-}
-
-function parseLeaders(data: any, stat: string): Leader[] {
-  const rs = data?.resultSets?.[0] ?? data?.resultSet;
-  if (!rs?.rowSet) return [];
-  const headers: string[] = rs.headers;
-  const rows: any[][] = rs.rowSet;
-  const nameIdx = headers.indexOf('PLAYER');
-  const teamIdx = headers.indexOf('TEAM');
-  const statIdx = headers.indexOf(stat);
-  const idIdx   = headers.indexOf('PLAYER_ID');
-  return rows.slice(0, 15).map(row => ({
-    name:     row[nameIdx] || '',
-    team:     row[teamIdx] || '',
-    value:    Number(row[statIdx] || 0).toFixed(1),
-    playerId: String(row[idIdx]   || ''),
-  }));
-}
 
 // ── Standings Table ──────────────────────────────────────────────────
 function StandingsTable({ teams, conf, onTeamClick }: {
-  teams: Standing[];
+  teams: StandingsRow[];
   conf: string;
   onTeamClick: (teamId: string, teamName: string, teamAbbr: string) => void;
 }) {
@@ -170,7 +121,7 @@ function StandingsTable({ teams, conf, onTeamClick }: {
           <span style={{ fontSize: 10, fontFamily: C.mono, color: accentColor, textAlign: 'right', alignSelf: 'center' }}>{t.rank}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
             {t.logo && <img src={t.logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }} />}
-            <span style={{ fontSize: 12, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.team}</span>
+            <span style={{ fontSize: 12, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.shortName}</span>
           </div>
           <span style={{ fontSize: 11, fontFamily: C.mono, color: C.textSub, textAlign: 'center', alignSelf: 'center', fontVariantNumeric: 'tabular-nums' }}>{t.wins}-{t.losses}</span>
           <span style={{ fontSize: 11, fontFamily: C.mono, textAlign: 'right', alignSelf: 'center', color: accentColor, fontVariantNumeric: 'tabular-nums' }}>{t.pct}</span>
@@ -219,48 +170,46 @@ function ScoreCard({ game }: { game: Game }) {
 }
 
 // ── League Leaders Panel ─────────────────────────────────────────────
-function LeagueLeadersPanel({ proxyOnline }: { proxyOnline: boolean }) {
+function LeagueLeadersPanel() {
   const navigate = useNavigate();
   const [active, setActive]         = useState('Points');
-  const [seasonType, setSeasonType] = useState<'Regular Season' | 'Playoffs'>('Regular Season');
-  const [leaders, setLeaders]       = useState<Record<string, Leader[]>>({});
-  const [panelLoading, setPanelLoading] = useState(false);
+  const [allLeaders, setAllLeaders] = useState<Record<string, Leader[]>>({});
+  const [panelLoading, setPanelLoading] = useState(true);
 
   useEffect(() => {
-    if (!proxyOnline) return;
-    setPanelLoading(true);
-    const stat = STAT_MAP[active];
-    fetch(`${PROXY}/leaders?stat=${stat}&seasonType=${encodeURIComponent(seasonType)}`)
-      .then(r => r.json())
-      .then(data => {
-        setLeaders(prev => ({ ...prev, [`${active}_${seasonType}`]: parseLeaders(data, stat) }));
-        setPanelLoading(false);
-      })
-      .catch(() => setPanelLoading(false));
-  }, [active, seasonType, proxyOnline]);
+    (async () => {
+      try {
+        const res = await fetch(
+          `https://site.api.espn.com/apis/site/v3/sports/basketball/nba/leaders`,
+          { signal: AbortSignal.timeout(8000) }
+        );
+        if (!res.ok) { setPanelLoading(false); return; }
+        const data = await res.json();
+        const cats = data?.leaders?.categories || [];
+        const parsed: Record<string, Leader[]> = {};
+        for (const cat of cats) {
+          const displayName = ESPN_CATEGORY_MAP[cat.name];
+          if (!displayName) continue;
+          parsed[displayName] = (cat.leaders || []).slice(0, 10).map((l: any) => ({
+            name: l.athlete?.displayName || '',
+            team: l.athlete?.team?.abbreviation || '',
+            value: l.displayValue || '',
+            playerId: String(l.athlete?.id || ''),
+            headshot: l.athlete?.headshot?.href || '',
+          }));
+        }
+        setAllLeaders(parsed);
+      } catch (e) { console.error('Leaders fetch failed', e); }
+      setPanelLoading(false);
+    })();
+  }, []);
 
-  const key   = `${active}_${seasonType}`;
   const { color, dimBg } = ACCENT[active];
-  const list  = leaders[key] || [];
+  const list  = allLeaders[active] || [];
   const max   = parseFloat(list[0]?.value || '1');
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-        {(['Regular Season', 'Playoffs'] as const).map(type => {
-          const isActive = seasonType === type;
-          return (
-            <button key={type} onClick={() => setSeasonType(type)} style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-              padding: '5px 14px', borderRadius: 6,
-              background: isActive ? C.redDim : 'transparent',
-              color: isActive ? C.red : C.textMuted,
-              border: isActive ? `1px solid ${C.redBorder}` : `1px solid ${C.border}`,
-              cursor: 'pointer', transition: 'all 150ms ease',
-            }}>{type === 'Regular Season' ? 'Reg. Season' : 'Playoffs'}</button>
-          );
-        })}
-      </div>
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, padding: 4, background: C.canvas, borderRadius: 8 }}>
         {CATEGORIES.map(cat => {
           const a = ACCENT[cat];
@@ -277,9 +226,7 @@ function LeagueLeadersPanel({ proxyOnline }: { proxyOnline: boolean }) {
           );
         })}
       </div>
-      {panelLoading ? <Spinner /> : !proxyOnline ? (
-        <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '24px 0' }}>Stats are updating.</p>
-      ) : list.length === 0 ? (
+      {panelLoading ? <Spinner /> : list.length === 0 ? (
         <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '24px 0' }}>No data available</p>
       ) : list.map((p, i) => (
         <div key={i}
@@ -290,7 +237,7 @@ function LeagueLeadersPanel({ proxyOnline }: { proxyOnline: boolean }) {
         >
           <span style={{ width: 18, textAlign: 'right', fontSize: 10, fontFamily: C.mono, color: i === 0 ? color : C.textMuted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
           <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, border: i === 0 ? `2px solid ${color}60` : `1px solid ${C.border}`, overflow: 'hidden', background: C.surfaceRaised }}>
-            <img src={`https://cdn.nba.com/headshots/nba/latest/260x190/${p.playerId}.png`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            <img src={p.headshot || `https://cdn.nba.com/headshots/nba/latest/260x190/${p.playerId}.png`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               onError={(e) => { const el = e.target as HTMLImageElement; el.style.display = 'none'; }}
             />
           </div>
@@ -313,18 +260,17 @@ function LeagueLeadersPanel({ proxyOnline }: { proxyOnline: boolean }) {
 // ── Today Page ───────────────────────────────────────────────────────
 export default function TodayPage() {
   const navigate = useNavigate();
-  const [standings,    setStandings]    = useState<Standing[]>([]);
+  const [standings,    setStandings]    = useState<StandingsRow[]>([]);
   const [games,        setGames]        = useState<Game[]>([]);
   const [news,         setNews]         = useState<{ headline: string; time: string; tag: string; link: string }[]>([]);
   const [loading,      setLoading]      = useState(true);
-  const [proxyOnline,  setProxyOnline]  = useState(false);
   const [lastUpdated,  setLastUpdated]  = useState('');
 
   const fetchAll = useCallback(async () => {
     try {
       const [scoreRes, newsRes] = await Promise.all([
         fetch(`${ESPN}/scoreboard`),
-        fetch(`${ESPN}/news?limit=8`),
+        fetch(`${ESPN}/news?limit=12`),
       ]);
       const scoreData = await scoreRes.json();
       setGames((scoreData.events || []).map((e: any) => {
@@ -347,7 +293,14 @@ export default function TodayPage() {
         };
       }));
       const newsData = await newsRes.json();
-      setNews((newsData.articles || []).slice(0, 8).map((a: any) => ({
+      // Filter: keep only articles where every league-type category is NBA or Fantasy
+      const nbaArticles = (newsData.articles || []).filter((a: any) => {
+        const cats = a.categories || [];
+        const leagueCats = cats.filter((c: any) => c.type === 'league');
+        if (leagueCats.length === 0) return true; // no league tag = keep
+        return leagueCats.every((c: any) => c.description === 'NBA' || c.description === 'Fantasy');
+      });
+      setNews(nbaArticles.slice(0, 8).map((a: any) => ({
         headline: a.headline || '',
         time:     a.published ? new Date(a.published).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
         tag:      a.categories?.[0]?.description || 'NBA',
@@ -356,23 +309,10 @@ export default function TodayPage() {
     } catch (e) { console.error('ESPN fetch failed', e); }
 
     try {
-      const espnStandRes = await fetch(
-        `https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?season=${getCurrentSeasonYear()}`,
-        { signal: AbortSignal.timeout(8000) }
-      );
-      if (espnStandRes.ok) {
-        const espnStand = await espnStandRes.json();
-        const parsed = parseStandingsFromESPN(espnStand);
-        if (parsed.length > 0) setStandings(parsed);
-      }
+      const parsed = await fetchStandings();
+      if (parsed.length > 0) setStandings(parsed);
     } catch (e) { console.error('Standings fetch failed', e); }
 
-    let pingOk = false;
-    try {
-      const pingRes = await fetch(`${PROXY}/leaders?stat=PTS`, { signal: AbortSignal.timeout(10000) });
-      pingOk = pingRes.ok;
-    } catch { pingOk = false; }
-    setProxyOnline(pingOk);
     setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }));
     setLoading(false);
   }, []);
@@ -389,20 +329,8 @@ export default function TodayPage() {
 
   return (
     <>
-      {/* Proxy banner */}
-      {!proxyOnline && !loading && (
-        <div style={{
-          background: C.amberDim,
-          borderBottom: `1px solid ${C.border}`,
-          padding: '9px 24px', textAlign: 'center',
-          fontSize: 12, color: C.amber, marginBottom: 16, borderRadius: 8,
-        }}>
-          Stats are updating.
-        </div>
-      )}
-
       {/* Home grid */}
-      <div style={{
+      <div className="today-grid" style={{
         display: 'grid',
         gridTemplateColumns: '288px 1fr 272px',
         gap: 18,
@@ -412,9 +340,9 @@ export default function TodayPage() {
         {/* LEFT -- Standings + Games */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={card}>
-            <div style={sectionLabel}>Standings Snapshot \u00B7 {getCurrentSeasonLabel()}</div>
+            <div style={sectionLabel}>Standings Snapshot {'\u00B7'} {getCurrentSeasonLabel()}</div>
             {loading ? <Spinner /> : standings.length === 0 ? (
-              <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '20px 0' }}>Stats are updating.</p>
+              <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '20px 0' }}>No standings data available.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
                 <StandingsTable teams={standings} conf="East" onTeamClick={handleTeamClick} />
@@ -428,12 +356,12 @@ export default function TodayPage() {
               textDecoration: 'none', transition: 'all 150ms ease', color: C.red,
               fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
             }}>
-              View Full Standings \u2192
+              View Full Standings {'\u2192'}
             </Link>
           </div>
 
           <div style={card}>
-            <div style={sectionLabel}>Today's Games</div>
+            <div style={sectionLabel}>Today{'\u2019'}s Games</div>
             {loading ? <Spinner /> : games.length === 0 ? (
               <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '20px 0' }}>No games scheduled today</p>
             ) : (
@@ -447,8 +375,8 @@ export default function TodayPage() {
         {/* CENTER -- Leaders */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={card}>
-            <div style={sectionLabel}>League Leaders \u00B7 Top 15</div>
-            <LeagueLeadersPanel proxyOnline={proxyOnline} />
+            <div style={sectionLabel}>League Leaders {'\u00B7'} Top 10</div>
+            <LeagueLeadersPanel />
           </div>
         </div>
 
@@ -483,27 +411,16 @@ export default function TodayPage() {
         </div>
       </div>
 
-      {/* Data sources strip */}
+      {/* Footer */}
       <div style={{
-        marginTop: 24, background: C.surface, border: `1px solid ${C.border}`,
-        borderRadius: 12, padding: '20px 28px',
-        display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'center',
+        marginTop: 24, padding: '16px 28px', textAlign: 'center',
+        fontSize: 11, color: C.textMuted, lineHeight: 1.6,
       }}>
-        {[
-          { label: 'Data Sources', value: 'NBA Stats API \u00B7 ESPN API \u00B7 nbaapi.com' },
-          { label: 'Models', value: 'Bayesian inference \u00B7 Implied probability \u00B7 Efficiency ratings' },
-          { label: 'Stack', value: 'React \u00B7 TypeScript \u00B7 Plotly.js \u00B7 Express \u00B7 Vercel' },
-          { label: 'Refresh', value: 'Live scores every 60s \u00B7 Stats cached 30min' },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ minWidth: 150 }}>
-            <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>{value}</div>
-          </div>
-        ))}
+        Data from ESPN.{lastUpdated ? ` Updated ${lastUpdated}.` : ''}
       </div>
 
       {/* Shameless Meter CTA */}
-      <div style={{ textAlign: 'center', marginTop: 36, paddingBottom: 8 }}>
+      <div style={{ textAlign: 'center', marginTop: 12, paddingBottom: 8 }}>
         <Link to="/shameless-meter" style={{
           display: 'inline-block',
           background: C.redDim, border: `1px solid ${C.redBorder}`,
@@ -511,18 +428,9 @@ export default function TodayPage() {
           color: C.red, fontSize: 13, fontWeight: 600, letterSpacing: '0.04em',
           textDecoration: 'none', transition: 'all 150ms ease',
         }}>
-          View The Shameless Meter \u2192
+          View The Shameless Meter {'\u2192'}
         </Link>
       </div>
-
-      {/* Updated timestamp */}
-      {lastUpdated && (
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <span style={{ fontSize: 10, color: C.textMuted, fontFamily: C.mono }}>
-            Last updated {lastUpdated}
-          </span>
-        </div>
-      )}
 
       {/* Responsive override for the 3-col grid */}
       <style>{`

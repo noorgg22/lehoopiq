@@ -1,47 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentSeasonLabel } from '../season';
-
-const PROXY = import.meta.env.VITE_PROXY_URL ||
-  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? '/api'
-    : 'http://localhost:3001/api');
+import { getCurrentSeasonYear, getCurrentSeasonLabel } from '../season';
 
 interface Leader {
   name: string;
   team: string;
   value: string;
   playerId: string;
-  gp: number;
+  headshot: string;
 }
+
+const ESPN_CATEGORY_MAP: Record<string, string> = {
+  pointsPerGame: 'Points',
+  reboundsPerGame: 'Rebounds',
+  assistsPerGame: 'Assists',
+  stealsPerGame: 'Steals',
+  blocksPerGame: 'Blocks',
+};
 
 const CATEGORIES = [
-  { label: 'Points', stat: 'PTS' },
-  { label: 'Rebounds', stat: 'REB' },
-  { label: 'Assists', stat: 'AST' },
-  { label: 'Steals', stat: 'STL' },
-  { label: 'Blocks', stat: 'BLK' },
-  { label: '3PM', stat: 'FG3M' },
+  { label: 'Points', espnName: 'pointsPerGame' },
+  { label: 'Rebounds', espnName: 'reboundsPerGame' },
+  { label: 'Assists', espnName: 'assistsPerGame' },
+  { label: 'Steals', espnName: 'stealsPerGame' },
+  { label: 'Blocks', espnName: 'blocksPerGame' },
 ];
-
-function parseLeaders(data: any, stat: string): Leader[] {
-  const rs = data?.resultSets?.[0] ?? data?.resultSet;
-  if (!rs?.rowSet) return [];
-  const headers: string[] = rs.headers;
-  const rows: any[][] = rs.rowSet;
-  const nameIdx = headers.indexOf('PLAYER');
-  const teamIdx = headers.indexOf('TEAM');
-  const statIdx = headers.indexOf(stat);
-  const idIdx = headers.indexOf('PLAYER_ID');
-  const gpIdx = headers.indexOf('GP');
-  return rows.slice(0, 15).map(row => ({
-    name: row[nameIdx] || '',
-    team: row[teamIdx] || '',
-    value: Number(row[statIdx] || 0).toFixed(1),
-    playerId: String(row[idIdx] || ''),
-    gp: Number(row[gpIdx] || 0),
-  }));
-}
 
 function Spinner() {
   return (
@@ -58,32 +41,43 @@ function Spinner() {
 
 export default function LeadersPage() {
   const navigate = useNavigate();
-  const [active, setActive] = useState('PTS');
-  const [leaders, setLeaders] = useState<Record<string, Leader[]>>({});
-  const [loading, setLoading] = useState(false);
+  const [active, setActive] = useState('Points');
+  const [allLeaders, setAllLeaders] = useState<Record<string, Leader[]>>({});
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (leaders[active]) return;
-    setLoading(true);
-    setError('');
-    fetch(`${PROXY}/leaders?stat=${active}`, { signal: AbortSignal.timeout(12000) })
-      .then(r => {
-        if (!r.ok) throw new Error(`API ${r.status}`);
-        return r.json();
-      })
-      .then(data => {
-        const parsed = parseLeaders(data, active);
-        setLeaders(prev => ({ ...prev, [active]: parsed }));
-        setLoading(false);
-      })
-      .catch(e => {
+    (async () => {
+      try {
+        const res = await fetch(
+          `https://site.api.espn.com/apis/site/v3/sports/basketball/nba/leaders`,
+          { signal: AbortSignal.timeout(10000) }
+        );
+        if (!res.ok) throw new Error(`ESPN ${res.status}`);
+        const data = await res.json();
+        const cats = data?.leaders?.categories || [];
+        const parsed: Record<string, Leader[]> = {};
+        for (const cat of cats) {
+          const displayName = ESPN_CATEGORY_MAP[cat.name];
+          if (!displayName) continue;
+          parsed[displayName] = (cat.leaders || []).slice(0, 10).map((l: any) => ({
+            name: l.athlete?.displayName || '',
+            team: l.athlete?.team?.abbreviation || '',
+            value: l.displayValue || '',
+            playerId: String(l.athlete?.id || ''),
+            headshot: l.athlete?.headshot?.href || '',
+          }));
+        }
+        setAllLeaders(parsed);
+      } catch (e: any) {
         setError(e.message || 'Failed to load leaders.');
+      } finally {
         setLoading(false);
-      });
-  }, [active]);
+      }
+    })();
+  }, []);
 
-  const list = leaders[active] || [];
+  const list = allLeaders[active] || [];
   const max = parseFloat(list[0]?.value || '1');
 
   return (
@@ -110,11 +104,11 @@ export default function LeadersPage() {
         flexWrap: 'wrap',
       }}>
         {CATEGORIES.map(cat => {
-          const isActive = cat.stat === active;
+          const isActive = cat.label === active;
           return (
             <button
-              key={cat.stat}
-              onClick={() => setActive(cat.stat)}
+              key={cat.label}
+              onClick={() => setActive(cat.label)}
               style={{
                 padding: '8px 18px',
                 fontSize: 'var(--t-sm)',
@@ -150,12 +144,12 @@ export default function LeadersPage() {
           {/* Table header */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '36px 48px 1fr 60px 60px',
+            gridTemplateColumns: '36px 48px 1fr 60px',
             gap: 'var(--sp-2)',
             padding: '10px var(--sp-4)',
             borderBottom: '1px solid var(--line)',
           }}>
-            {['#', '', 'Player', 'GP', CATEGORIES.find(c => c.stat === active)?.label || active].map((h, i) => (
+            {['#', '', 'Player', active].map((h, i) => (
               <span key={h + i} style={{
                 fontSize: 'var(--t-xs)',
                 fontFamily: 'var(--font-body)',
@@ -180,7 +174,7 @@ export default function LeadersPage() {
                 onClick={() => navigate(`/players/${p.playerId}`)}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '36px 48px 1fr 60px 60px',
+                  gridTemplateColumns: '36px 48px 1fr 60px',
                   gap: 'var(--sp-2)',
                   padding: '12px var(--sp-4)',
                   borderBottom: i < list.length - 1 ? '1px solid var(--line)' : 'none',
@@ -216,7 +210,7 @@ export default function LeadersPage() {
                     loading="lazy"
                     width={40}
                     height={40}
-                    src={`https://cdn.nba.com/headshots/nba/latest/260x190/${p.playerId}.png`}
+                    src={p.headshot || `https://cdn.nba.com/headshots/nba/latest/260x190/${p.playerId}.png`}
                     alt={p.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -264,17 +258,6 @@ export default function LeadersPage() {
                     }} />
                   </div>
                 </div>
-
-                {/* GP */}
-                <span style={{
-                  fontSize: 'var(--t-sm)',
-                  fontFamily: 'var(--font-body)',
-                  fontVariantNumeric: 'tabular-nums',
-                  color: 'var(--chalk-2)',
-                  textAlign: 'right',
-                }}>
-                  {p.gp}
-                </span>
 
                 {/* Value */}
                 <span style={{

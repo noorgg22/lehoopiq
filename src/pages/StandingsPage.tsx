@@ -1,76 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentSeasonYear, getCurrentSeasonLabel } from '../season';
-
-const ESPN_LOGO_ABBR: Record<string, string> = {
-  GSW: 'gs', NYK: 'ny', NOP: 'no', SAS: 'sa', UTA: 'utah', WAS: 'wsh',
-};
-
-interface StandingsRow {
-  rank: number;
-  team: string;
-  abbr: string;
-  logo: string;
-  wins: number;
-  losses: number;
-  pct: string;
-  gb: string;
-  last10: string;
-  streak: string;
-  conf: 'East' | 'West';
-}
-
-function parseStandings(espn: any): StandingsRow[] {
-  const children = espn?.children || [];
-  const rows: StandingsRow[] = [];
-  for (const conf of children) {
-    const confName: 'East' | 'West' = conf.name?.includes('East') ? 'East' : 'West';
-    const entries = conf?.standings?.entries || [];
-    // Sort by playoffSeed stat if available, else use index
-    const sorted = [...entries].sort((a: any, b: any) => {
-      const seedA = (a.stats || []).find((s: any) => s.name === 'playoffSeed')?.value ?? 99;
-      const seedB = (b.stats || []).find((s: any) => s.name === 'playoffSeed')?.value ?? 99;
-      return seedA - seedB;
-    });
-    sorted.forEach((entry: any, idx: number) => {
-      const team = entry.team;
-      const abbr = team?.abbreviation || '';
-      const espnAbbr = ESPN_LOGO_ABBR[abbr] || abbr.toLowerCase();
-      const stats: Record<string, any> = {};
-      (entry.stats || []).forEach((s: any) => { stats[s.name] = s.value; });
-      const wins = stats.wins || 0;
-      const losses = stats.losses || 0;
-      const pct = (wins / Math.max(wins + losses, 1)).toFixed(3).replace(/^0/, '');
-
-      // Games behind
-      const gbVal = stats.gamesBehind;
-      const gb = gbVal === 0 || gbVal === undefined ? '-' : String(gbVal);
-
-      // Last 10 record
-      const l10W = stats.record?.items?.find?.((i: any) => i.type === 'lastten')?.summary;
-      const last10 = stats['Last Ten Games Record'] || l10W || stats.last10Record || '-';
-
-      // Streak
-      const streakVal = stats.streak;
-      const streak = streakVal !== undefined ? String(streakVal) : '-';
-
-      rows.push({
-        rank: idx + 1,
-        team: team?.displayName || '',
-        abbr,
-        logo: `https://a.espncdn.com/i/teamlogos/nba/500/${espnAbbr}.png`,
-        wins,
-        losses,
-        pct,
-        gb,
-        last10,
-        streak,
-        conf: confName,
-      });
-    });
-  }
-  return rows;
-}
+import { getCurrentSeasonLabel } from '../season';
+import { fetchStandings, type StandingsRow } from '../parseStandings';
 
 function Spinner() {
   return (
@@ -215,13 +146,7 @@ export default function StandingsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(
-          `https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?season=${getCurrentSeasonYear()}`,
-          { signal: AbortSignal.timeout(10000) },
-        );
-        if (!res.ok) throw new Error(`ESPN ${res.status}`);
-        const data = await res.json();
-        const parsed = parseStandings(data);
+        const parsed = await fetchStandings();
         if (parsed.length > 0) setStandings(parsed);
         else setError('No standings data available.');
       } catch (e: any) {

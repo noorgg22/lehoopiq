@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './tokens.css';
 import './index.css';
 import Layout from './Layout';
@@ -22,6 +22,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="leaders" element={<LeadersPage />} />
           <Route path="teams" element={<TeamsPage />} />
           <Route path="teams/:abbr" element={<TeamPage />} />
+          <Route path="players" element={<Navigate to="/leaders" replace />} />
           <Route path="players/:slug" element={<PlayerProfile />} />
           <Route path="shameless-meter" element={<ShamelessMeter />} />
         </Route>

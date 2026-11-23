@@ -13,8 +13,8 @@ const C = {
 };
 
 const confs = [
-  { label: 'Eastern Conference', color: C.emerald, teams: NBA_TEAM_LIST.filter((_, i) => i < 15) },
-  { label: 'Western Conference', color: C.sky,     teams: NBA_TEAM_LIST.filter((_, i) => i >= 15) },
+  { label: 'Eastern Conference', color: C.emerald, teams: NBA_TEAM_LIST.filter(t => t.conf === 'East') },
+  { label: 'Western Conference', color: C.sky,     teams: NBA_TEAM_LIST.filter(t => t.conf === 'West') },
 ];
 
 export default function TeamsPage() {
