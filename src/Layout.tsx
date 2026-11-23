@@ -127,7 +127,7 @@ export default function Layout() {
               {item.label === 'Today' && '\u2302'}
               {item.label === 'Standings' && '\u2630'}
               {item.label === 'Leaders' && '\u2605'}
-              {item.label === 'Teams' && '\u26BD'}
+              {item.label === 'Teams' && '🏀'}
             </span>
             <span className="nav-bottom-tab-label">{item.label}</span>
           </NavLink>

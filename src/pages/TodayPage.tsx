@@ -331,16 +331,13 @@ export default function TodayPage() {
     <>
       {/* Home grid */}
       <div className="today-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: '288px 1fr 272px',
-        gap: 18,
         alignItems: 'start',
       }}>
 
         {/* LEFT -- Standings + Games */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={card}>
-            <div style={sectionLabel}>Standings Snapshot {'\u00B7'} {getCurrentSeasonLabel()}</div>
+            <div style={sectionLabel}>Standings Snapshot · {getCurrentSeasonLabel()}</div>
             {loading ? <Spinner /> : standings.length === 0 ? (
               <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '20px 0' }}>No standings data available.</p>
             ) : (
@@ -356,12 +353,12 @@ export default function TodayPage() {
               textDecoration: 'none', transition: 'all 150ms ease', color: C.red,
               fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
             }}>
-              View Full Standings {'\u2192'}
+              View Full Standings →
             </Link>
           </div>
 
           <div style={card}>
-            <div style={sectionLabel}>Today{'\u2019'}s Games</div>
+            <div style={sectionLabel}>Today's Games</div>
             {loading ? <Spinner /> : games.length === 0 ? (
               <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', padding: '20px 0' }}>No games scheduled today</p>
             ) : (
@@ -375,7 +372,7 @@ export default function TodayPage() {
         {/* CENTER -- Leaders */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={card}>
-            <div style={sectionLabel}>League Leaders {'\u00B7'} Top 10</div>
+            <div style={sectionLabel}>League Leaders · Top 10</div>
             <LeagueLeadersPanel />
           </div>
         </div>
@@ -428,14 +425,19 @@ export default function TodayPage() {
           color: C.red, fontSize: 13, fontWeight: 600, letterSpacing: '0.04em',
           textDecoration: 'none', transition: 'all 150ms ease',
         }}>
-          View The Shameless Meter {'\u2192'}
+          View The Shameless Meter →
         </Link>
       </div>
 
       {/* Responsive override for the 3-col grid */}
       <style>{`
+        .today-grid {
+          display: grid;
+          grid-template-columns: 288px 1fr 272px;
+          gap: 18px;
+        }
         @media (max-width: 1024px) {
-          .today-grid { grid-template-columns: 1fr !important; }
+          .today-grid { grid-template-columns: 1fr; }
         }
       `}</style>
     </>

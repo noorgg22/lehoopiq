@@ -823,7 +823,7 @@ export default function TeamPage() {
               </div>
               {roster.length === 0 && (
                 <div style={{ background: C.surface, borderRadius: 20, padding: 40, textAlign: 'center', color: C.textMuted }}>
-                  Roster data unavailable. Make sure the proxy server is running.
+                  Roster data unavailable.
                 </div>
               )}
             </div>

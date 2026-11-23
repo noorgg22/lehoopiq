@@ -285,7 +285,7 @@ export default function ShamelessMeter() {
             🎵 This page is dedicated to ethical basketball. Play hard, play fair, play like you actually want to score — not just get fouled.
           </p>
           <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>
-            Ratings are based on FTA rate, foul drawing frequency, and pure vibes.
+            Ratings are based on free throw attempt rate per 36 minutes and shooting fouls drawn per game.
           </p>
         </div>
 

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@types/three": "^0.183.1",
+    "@vercel/og": "^1.0.3",
     "axios": "^1.14.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
