@@ -52,6 +52,7 @@ const ESPN_CATEGORY_MAP: Record<string, string> = {
 
 interface Leader  { name: string; team: string; value: string; playerId: string; headshot: string; }
 interface Game    { id: string; home: { name: string; logo: string }; away: { name: string; logo: string }; homeScore: number; awayScore: number; status: string; period: number; clock: string; }
+interface TopScorer { name: string; team: string; points: number; headshot: string; }
 
 const card: React.CSSProperties = {
   background: C.surface,
@@ -262,6 +263,8 @@ export default function TodayPage() {
   const navigate = useNavigate();
   const [standings,    setStandings]    = useState<StandingsRow[]>([]);
   const [games,        setGames]        = useState<Game[]>([]);
+  const [topScorers,   setTopScorers]   = useState<TopScorer[]>([]);
+  const [lastNightDate, setLastNightDate] = useState('');
   const [news,         setNews]         = useState<{ headline: string; time: string; tag: string; link: string }[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [lastUpdated,  setLastUpdated]  = useState('');
@@ -273,7 +276,8 @@ export default function TodayPage() {
         fetch(`${ESPN}/news?limit=12`),
       ]);
       const scoreData = await scoreRes.json();
-      setGames((scoreData.events || []).map((e: any) => {
+      const events = scoreData.events || [];
+      setGames(events.map((e: any) => {
         const comp   = e.competitions?.[0];
         const home   = comp?.competitors?.find((c: any) => c.homeAway === 'home');
         const away   = comp?.competitors?.find((c: any) => c.homeAway === 'away');
@@ -292,6 +296,37 @@ export default function TodayPage() {
           clock:  status?.displayClock || '',
         };
       }));
+
+      // Extract top scorers from final games
+      const scorers: TopScorer[] = [];
+      let finalGameDate = '';
+      for (const ev of events) {
+        const comp = ev.competitions?.[0];
+        const statusDetail = comp?.status?.type?.shortDetail || '';
+        if (!statusDetail.toLowerCase().includes('final')) continue;
+        if (!finalGameDate && ev.date) {
+          finalGameDate = new Date(ev.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+        for (const competitor of (comp?.competitors || [])) {
+          const leaders = competitor?.leaders || [];
+          const pointsLeader = leaders.find((l: any) => l.name === 'points' || l.displayName === 'Points');
+          if (pointsLeader) {
+            const athlete = pointsLeader.leaders?.[0]?.athlete;
+            const value = parseFloat(pointsLeader.leaders?.[0]?.displayValue || pointsLeader.leaders?.[0]?.value || '0');
+            if (athlete && value > 0) {
+              scorers.push({
+                name: athlete.displayName || '',
+                team: competitor?.team?.abbreviation || competitor?.team?.shortDisplayName || '',
+                points: value,
+                headshot: athlete.headshot?.href || '',
+              });
+            }
+          }
+        }
+      }
+      scorers.sort((a, b) => b.points - a.points);
+      setTopScorers(scorers.slice(0, 5));
+      setLastNightDate(finalGameDate);
       const newsData = await newsRes.json();
       // Filter: keep only articles where every league-type category is NBA or Fantasy
       const nbaArticles = (newsData.articles || []).filter((a: any) => {
@@ -356,6 +391,52 @@ export default function TodayPage() {
               View Full Standings →
             </Link>
           </div>
+
+          {topScorers.length > 0 && (
+            <div style={card}>
+              <div style={sectionLabel}>Last Night{lastNightDate ? ` · ${lastNightDate}` : ''}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {topScorers.map((scorer, i) => {
+                  const maxPts = topScorers[0]?.points || 1;
+                  const barPct = (scorer.points / maxPts) * 100;
+                  const isTop = i === 0;
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+                        border: isTop ? '2px solid var(--heat)' : `1px solid ${C.border}`,
+                        background: C.surfaceRaised,
+                      }}>
+                        {scorer.headshot && (
+                          <img src={scorer.headshot} alt={scorer.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{scorer.name}</span>
+                          <span style={{ fontSize: 10, color: C.textMuted, fontFamily: C.mono, flexShrink: 0 }}>{scorer.team}</span>
+                        </div>
+                        <div style={{ height: 4, background: C.surfaceRaised, borderRadius: 99, overflow: 'hidden' }}>
+                          <div style={{
+                            height: '100%', width: `${barPct}%`, borderRadius: 99,
+                            background: isTop ? 'var(--heat)' : 'var(--chalk-2)',
+                            opacity: isTop ? 0.85 : 0.45,
+                            transition: 'width 400ms ease',
+                          }} />
+                        </div>
+                      </div>
+                      <span style={{
+                        fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700,
+                        color: isTop ? 'var(--heat)' : C.text,
+                        flexShrink: 0, fontVariantNumeric: 'tabular-nums', minWidth: 32, textAlign: 'right',
+                      }}>{scorer.points}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div style={card}>
             <div style={sectionLabel}>Today's Games</div>

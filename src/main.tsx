@@ -10,6 +10,7 @@ import LeadersPage from './pages/LeadersPage';
 import TeamsPage from './pages/TeamsPage';
 import TeamPage from './TeamPage';
 import PlayerProfile from './PlayerProfile';
+import ComparePage from './pages/ComparePage';
 import ShamelessMeter from './ShamelessMeter';
 
 createRoot(document.getElementById('root')!).render(
@@ -24,6 +25,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="teams/:abbr" element={<TeamPage />} />
           <Route path="players" element={<Navigate to="/leaders" replace />} />
           <Route path="players/:slug" element={<PlayerProfile />} />
+          <Route path="compare/:matchup" element={<ComparePage />} />
           <Route path="shameless-meter" element={<ShamelessMeter />} />
         </Route>
       </Routes>
